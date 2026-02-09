@@ -30,7 +30,7 @@ const AddExpenseModal: React.FC<AddExpenseModalProps> = ({ isOpen, onClose, onAd
       <div className="modal-card">
         <div className="flex justify-between items-center mb-6">
           <h2 className="section-title">Add New Expense</h2>
-          <button onClick={onClose} className="icon-button">
+          <button onClick={onClose} className="icon-button" aria-label="Close expense modal">
             <FiX />
           </button>
         </div>

@@ -14,6 +14,8 @@ interface Book {
   id: string;
   name: string;
   createdAt?: string;
+  // Preserve the raw createdAt date for accurate metrics (month/year checks)
+  createdAtRaw?: Date | null;
 }
 
 const EmptyState = ({ setIsModalOpen }: { setIsModalOpen: (isOpen: boolean) => void }) => (
@@ -48,11 +50,16 @@ const Dashboard = () => {
       setLoading(true);
       const q = query(collection(db, 'books'), orderBy('createdAt', 'desc'));
       const querySnapshot = await getDocs(q);
-      const booksData = querySnapshot.docs.map(doc => ({ 
-        id: doc.id, 
-        name: doc.data().name,
-        createdAt: doc.data().createdAt?.toDate?.().toLocaleDateString() || 'Recently'
-      }));
+      const booksData = querySnapshot.docs.map(doc => {
+        const raw = doc.data().createdAt;
+        const createdAtDate = raw?.toDate?.() ?? null;
+        return {
+          id: doc.id,
+          name: doc.data().name,
+          createdAt: createdAtDate ? createdAtDate.toLocaleDateString() : 'Recently',
+          createdAtRaw: createdAtDate,
+        } as Book;
+      });
       setBooks(booksData);
       setError(null);
     } catch (e) {
@@ -120,7 +127,14 @@ const Dashboard = () => {
         <Card>
           <p className="text-sm text-slate-500">Books This Month</p>
           <p className="metric-value mt-2">
-            {books.filter((book) => book.createdAt && book.createdAt !== 'Recently').length}
+            {(() => {
+              const now = new Date();
+              return books.filter((book) =>
+                book.createdAtRaw instanceof Date &&
+                book.createdAtRaw.getMonth() === now.getMonth() &&
+                book.createdAtRaw.getFullYear() === now.getFullYear()
+              ).length;
+            })()}
           </p>
         </Card>
         <Card>
@@ -192,7 +206,12 @@ const Dashboard = () => {
           <Card>
             <h3 className="section-title mb-4">Quick Actions</h3>
             <div className="space-y-3">
-              <button className="btn-secondary w-full justify-start">
+              <button
+                className="btn-secondary w-full justify-start opacity-60 cursor-not-allowed"
+                disabled
+                aria-disabled="true"
+                title="Coming soon"
+              >
                 <FiPlus /> Add New Transaction
               </button>
               <button onClick={() => setIsModalOpen(true)} className="btn-secondary w-full justify-start">
@@ -201,7 +220,8 @@ const Dashboard = () => {
             </div>
           </Card>
           <Card>
-            <h3 className="section-title mb-4">Recent Activity</h3>
+            <h3 className="section-title mb-1">Recent Activity <span className="ml-2 inline-block rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">Example</span></h3>
+            <div className="text-xs text-slate-400 mb-3">This section shows example entries. Replace with real activity data when available.</div>
             <div className="space-y-4 text-sm">
               <div className="flex items-center gap-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100 font-semibold text-emerald-700">T</div>

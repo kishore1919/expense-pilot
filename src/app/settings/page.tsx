@@ -10,6 +10,34 @@ const SettingsPage = () => {
   const [darkMode, setDarkMode] = useState(true);
   const { currency, setCurrency, currencyOptions } = useCurrency();
 
+  React.useEffect(() => {
+    // Initialize toggles from localStorage after mount to avoid SSR/hydration issues
+    try {
+      const savedNotifications = localStorage.getItem('pet_notifications');
+      const savedDarkMode = localStorage.getItem('pet_dark_mode');
+      if (savedNotifications !== null) setNotifications(savedNotifications === 'true');
+      if (savedDarkMode !== null) setDarkMode(savedDarkMode === 'true');
+    } catch {
+      // ignore localStorage errors
+    }
+  }, []);
+
+  const toggleNotifications = () => {
+    setNotifications((prev) => {
+      const next = !prev;
+      try { localStorage.setItem('pet_notifications', String(next)); } catch {}
+      return next;
+    });
+  };
+
+  const toggleDarkMode = () => {
+    setDarkMode((prev) => {
+      const next = !prev;
+      try { localStorage.setItem('pet_dark_mode', String(next)); } catch {}
+      return next;
+    });
+  };
+
   return (
     <div className="space-y-8">
       <header className="surface-card p-6 md:p-8">
@@ -61,7 +89,7 @@ const SettingsPage = () => {
                 </div>
               </div>
               <button
-                onClick={() => setNotifications(!notifications)}
+                onClick={toggleNotifications}
                 className={`relative h-7 w-14 rounded-full transition-colors ${notifications ? 'bg-teal-700' : 'bg-slate-300'}`}
               >
                 <div className={`absolute top-1 h-5 w-5 rounded-full bg-white transition-transform ${notifications ? 'translate-x-8' : 'translate-x-1'}`} />
@@ -76,7 +104,7 @@ const SettingsPage = () => {
                 </div>
               </div>
               <button
-                onClick={() => setDarkMode(!darkMode)}
+                onClick={toggleDarkMode}
                 className={`relative h-7 w-14 rounded-full transition-colors ${darkMode ? 'bg-teal-700' : 'bg-slate-300'}`}
               >
                 <div className={`absolute top-1 h-5 w-5 rounded-full bg-white transition-transform ${darkMode ? 'translate-x-8' : 'translate-x-1'}`} />

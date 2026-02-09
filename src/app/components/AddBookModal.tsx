@@ -20,6 +20,12 @@ const AddBookModal: React.FC<AddBookModalProps> = ({ isOpen, onClose, onAddBook 
     }
   };
 
+  const handleClose = () => {
+    // Reset form state before closing so inputs do not persist
+    setBookName('');
+    onClose();
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -27,7 +33,7 @@ const AddBookModal: React.FC<AddBookModalProps> = ({ isOpen, onClose, onAddBook 
       <div className="modal-card">
         <div className="flex justify-between items-center mb-6">
           <h2 className="section-title">Create New Expense Book</h2>
-          <button onClick={onClose} className="icon-button">
+          <button onClick={handleClose} className="icon-button" aria-label="Close dialog">
             <FiX />
           </button>
         </div>
@@ -45,7 +51,7 @@ const AddBookModal: React.FC<AddBookModalProps> = ({ isOpen, onClose, onAddBook 
             />
           </div>
           <div className="flex justify-end gap-3">
-            <button type="button" onClick={onClose} className="btn-secondary">
+            <button type="button" onClick={handleClose} className="btn-secondary">
               Cancel
             </button>
             <button type="submit" className="btn-primary">

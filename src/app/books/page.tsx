@@ -156,14 +156,15 @@ const BooksPage = () => {
                 </div>
               </div>
 
-              <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
+              <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity flex gap-2">
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
                     handleDeleteBook(book.id);
                   }}
-                  className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-red-200 bg-red-50 text-red-700 transition hover:bg-red-100"
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-red-200 bg-red-50 text-red-700 transition hover:bg-red-100 focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-red-300"
                   title="Delete book"
+                  aria-label={`Delete ${book.name}`}
                 >
                   <FiTrash2 />
                 </button>

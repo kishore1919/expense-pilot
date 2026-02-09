@@ -82,7 +82,7 @@ const schema = z.object({
   email: z.string().email(),
 })
 
-export async function-save-email(prevState: any, formData: FormData) {
+export async function saveEmail(prevState: any, formData: FormData) {
   const validatedFields = schema.safeParse({
     email: formData.get('email'),
   })

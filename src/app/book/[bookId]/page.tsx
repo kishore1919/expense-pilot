@@ -28,7 +28,12 @@ const BookDetailPage = () => {
 
   useEffect(() => {
     const fetchBookDetails = async () => {
-      if (!bookId) return;
+      // Validate the dynamic param is a single string to avoid runtime errors
+      if (!bookId || typeof bookId !== 'string' || Array.isArray(bookId)) {
+        setError('Invalid book ID.');
+        setLoading(false);
+        return;
+      }
 
       try {
         setLoading(true);
@@ -59,7 +64,7 @@ const BookDetailPage = () => {
   }, [bookId]);
 
   const handleAddExpense = async (expense: { description: string; amount: number }) => {
-    if (!bookId) return;
+    if (!bookId || typeof bookId !== 'string' || Array.isArray(bookId)) return;
 
     try {
       const docRef = await addDoc(collection(db, `books/${bookId}/expenses`), expense);
@@ -80,7 +85,7 @@ const BookDetailPage = () => {
     <div className="space-y-6">
       <header className="surface-card flex flex-col gap-4 p-6 md:flex-row md:items-center md:justify-between md:p-8">
         <div className="flex items-center gap-4">
-          <button onClick={() => router.back()} className="icon-button">
+          <button onClick={() => router.back()} className="icon-button" aria-label="Back">
             <FiChevronLeft />
           </button>
           <div>

@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { FiX } from 'react-icons/fi';
+import { useCurrency } from '../context/CurrencyContext';
 
 interface AddExpenseModalProps {
   isOpen: boolean;
@@ -12,6 +13,7 @@ interface AddExpenseModalProps {
 const AddExpenseModal: React.FC<AddExpenseModalProps> = ({ isOpen, onClose, onAddExpense }) => {
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
+  const { currency } = useCurrency();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -24,17 +26,17 @@ const AddExpenseModal: React.FC<AddExpenseModalProps> = ({ isOpen, onClose, onAd
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
-      <div className="glassmorphic p-8 rounded-2xl shadow-xl w-full max-w-md z-50 text-white">
+    <div className="modal-overlay">
+      <div className="modal-card">
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-bold">Add New Expense</h2>
-          <button onClick={onClose} className="p-2 hover:bg-white/20 rounded-full">
+          <h2 className="section-title">Add New Expense</h2>
+          <button onClick={onClose} className="icon-button">
             <FiX />
           </button>
         </div>
         <form onSubmit={handleSubmit}>
           <div className="mb-4">
-            <label htmlFor="description" className="block text-sm font-medium text-white/80 mb-2">
+            <label htmlFor="description" className="field-label">
               Description
             </label>
             <input
@@ -42,34 +44,34 @@ const AddExpenseModal: React.FC<AddExpenseModalProps> = ({ isOpen, onClose, onAd
               id="description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              className="w-full border-none glassmorphic p-4 rounded-xl focus:ring-2 focus:ring-white/50 transition-all outline-none"
+              className="text-field"
               placeholder="e.g., Groceries, Rent, etc."
             />
           </div>
           <div className="mb-6">
-            <label htmlFor="amount" className="block text-sm font-medium text-white/80 mb-2">
-              Amount
+            <label htmlFor="amount" className="field-label">
+              Amount ({currency})
             </label>
             <input
               type="number"
               id="amount"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
-              className="w-full border-none glassmorphic p-4 rounded-xl focus:ring-2 focus:ring-white/50 transition-all outline-none"
-              placeholder="0.00"
+              className="text-field"
+              placeholder={`0.00 ${currency}`}
             />
           </div>
-          <div className="flex justify-end space-x-4">
+          <div className="flex justify-end gap-3">
             <button
               type="button"
               onClick={onClose}
-              className="px-6 py-3 rounded-xl font-semibold hover:bg-white/20 transition-colors"
+              className="btn-secondary"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="px-6 py-3 rounded-xl font-semibold text-indigo-600 bg-white/90 hover:bg-white transition-colors"
+              className="btn-primary"
             >
               Add Expense
             </button>

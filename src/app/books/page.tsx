@@ -1,13 +1,14 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { FiPlus, FiSearch, FiTrash2, FiEdit3 } from 'react-icons/fi';
+import { FiArrowRight, FiPlus, FiSearch, FiTrash2 } from 'react-icons/fi';
 import { FaBook } from 'react-icons/fa';
 import { collection, getDocs, addDoc, deleteDoc, doc, query, orderBy } from "firebase/firestore";
 import { db } from '../firebase';
 import { useRouter } from 'next/navigation';
 import AddBookModal from '../components/AddBookModal';
 import Loading from '../components/Loading';
+import Card from '../components/Card';
 
 interface Book {
   id: string;
@@ -16,14 +17,14 @@ interface Book {
 }
 
 const EmptyState = ({ onCreate }: { onCreate: () => void }) => (
-  <div className="text-center py-20 px-10 rounded-2xl glassmorphic">
-    <div className="w-24 h-24 bg-white/20 text-white rounded-full mx-auto flex items-center justify-center mb-6">
-      <FaBook className="text-4xl" />
+  <div className="empty-state">
+    <div className="mb-5 flex h-20 w-20 items-center justify-center rounded-full bg-teal-100 text-teal-700">
+      <FaBook className="text-3xl" />
     </div>
-    <h2 className="text-2xl font-bold text-white mb-2">No expense books yet!</h2>
-    <p className="text-white/70 mb-6 max-w-sm mx-auto">Create your first expense book to start tracking your finances.</p>
-    <button onClick={onCreate} className="bg-white/90 text-indigo-600 px-8 py-4 rounded-xl font-semibold flex items-center shadow-lg hover:bg-white transition-all mx-auto">
-      <FiPlus className="mr-2 text-xl" /> Create Your First Book
+    <h2 className="section-title">No books yet</h2>
+    <p className="mt-2 max-w-sm text-slate-600">Create your first expense book to start tracking spending with structure.</p>
+    <button onClick={onCreate} className="btn-primary mt-7">
+      <FiPlus /> Create Your First Book
     </button>
   </div>
 );
@@ -102,90 +103,81 @@ const BooksPage = () => {
   }
 
   return (
-    <div className="text-white max-w-6xl mx-auto">
-      <header className="mb-10">
-        <h1 className="text-4xl font-bold mb-2">My Books</h1>
-        <p className="text-white/70">Manage and organize all your expense books.</p>
+    <div className="space-y-8">
+      <header className="surface-card p-6 md:p-8">
+        <h1 className="page-title">My Books</h1>
+        <p className="page-subtitle">Manage and organize all your expense books.</p>
       </header>
 
       {error && (
-        <div className="mb-6 p-4 bg-red-500/20 border border-red-500/50 rounded-xl text-red-200">
+        <div className="status-error">
           {error}
         </div>
       )}
 
       {books.length > 0 && (
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+        <div className="surface-card flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="relative w-full sm:w-96">
-            <input 
-              type="text" 
-              placeholder="Search books..." 
+            <input
+              type="text"
+              placeholder="Search books..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full border-none glassmorphic p-4 pl-12 rounded-xl focus:ring-2 focus:ring-white/50 transition-all outline-none"
+              className="text-field pl-11"
             />
-            <FiSearch className="w-5 h-5 absolute left-4 top-4 text-white/50" />
+            <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
           </div>
-          <button 
-            onClick={() => setIsModalOpen(true)} 
-            className="bg-white/90 text-indigo-600 px-6 py-3 rounded-xl font-semibold flex items-center shadow-lg hover:bg-white transition-all whitespace-nowrap"
-          >
-            <FiPlus className="mr-2 text-xl" /> Create New Book
+          <button onClick={() => setIsModalOpen(true)} className="btn-primary w-full whitespace-nowrap sm:w-auto">
+            <FiPlus /> Create New Book
           </button>
         </div>
       )}
 
       {filteredBooks.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
           {filteredBooks.map((book) => (
-            <div 
-              key={book.id} 
-              className="glassmorphic p-6 rounded-2xl hover:bg-white/25 transition-all group relative"
-            >
-              <div 
+            <Card key={book.id} className="group relative p-5 transition hover:-translate-y-0.5 hover:bg-white/90">
+              <div
                 onClick={() => handleBookClick(book.id)}
                 className="cursor-pointer"
               >
-                <div className="flex items-center mb-4">
-                  <div className="w-14 h-14 bg-white/20 text-white rounded-xl mr-4 flex items-center justify-center text-2xl">
+                <div className="mb-4 flex items-center">
+                  <div className="mr-4 flex h-12 w-12 items-center justify-center rounded-xl bg-teal-100 text-xl text-teal-700">
                     <FaBook />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <h3 className="font-bold text-lg truncate">{book.name}</h3>
-                    <p className="text-white/60 text-sm">Created {book.createdAt}</p>
+                    <h3 className="truncate text-lg font-semibold text-slate-900">{book.name}</h3>
+                    <p className="text-sm text-slate-500">Created {book.createdAt}</p>
                   </div>
                 </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-white/70">Click to view details</span>
-                  <span className="text-white/50 group-hover:text-white transition-colors">→</span>
+                <div className="flex items-center justify-between text-sm font-medium text-slate-600">
+                  <span>Open details</span>
+                  <FiArrowRight className="transition group-hover:translate-x-1 group-hover:text-teal-700" />
                 </div>
               </div>
-              
+
               <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
-                <button 
+                <button
                   onClick={(e) => {
                     e.stopPropagation();
                     handleDeleteBook(book.id);
                   }}
-                  className="p-2 bg-red-500/20 hover:bg-red-500/40 rounded-lg transition-colors text-red-300"
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-red-200 bg-red-50 text-red-700 transition hover:bg-red-100"
                   title="Delete book"
                 >
                   <FiTrash2 />
                 </button>
               </div>
-            </div>
+            </Card>
           ))}
         </div>
       ) : books.length > 0 ? (
-        <div className="text-center py-16 glassmorphic rounded-2xl">
-          <p className="text-white/70 text-lg">No books match your search.</p>
-          <button 
-            onClick={() => setSearchQuery('')} 
-            className="mt-4 text-white underline hover:text-white/80"
-          >
+        <Card className="py-14 text-center">
+          <p className="text-lg text-slate-600">No books match your search.</p>
+          <button onClick={() => setSearchQuery('')} className="btn-secondary mt-4">
             Clear search
           </button>
-        </div>
+        </Card>
       ) : (
         <EmptyState onCreate={() => setIsModalOpen(true)} />
       )}

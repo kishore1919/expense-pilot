@@ -4,12 +4,9 @@ import React, { useState, useEffect } from 'react';
 import { FiTrendingUp, FiTrendingDown, FiDollarSign, FiBook } from 'react-icons/fi';
 import { collection, getDocs } from "firebase/firestore";
 import { db } from '../firebase';
-
-interface Book {
-  id: string;
-  name: string;
-  totalExpenses?: number;
-}
+import Card from '../components/Card';
+import Loading from '../components/Loading';
+import { useCurrency } from '../context/CurrencyContext';
 
 interface Expense {
   id: string;
@@ -24,6 +21,7 @@ const AnalyticsPage = () => {
   const [averageExpense, setAverageExpense] = useState(0);
   const [highestExpense, setHighestExpense] = useState(0);
   const [loading, setLoading] = useState(true);
+  const { formatCurrency } = useCurrency();
 
   useEffect(() => {
     fetchAnalyticsData();
@@ -68,153 +66,149 @@ const AnalyticsPage = () => {
   const stats = [
     {
       title: 'Total Expenses',
-      value: `$${totalExpenses.toFixed(2)}`,
+      value: formatCurrency(totalExpenses),
       icon: FiDollarSign,
-      color: 'bg-red-500/20 text-red-300'
+      color: 'bg-red-100 text-red-700'
     },
     {
       title: 'Total Books',
       value: totalBooks,
       icon: FiBook,
-      color: 'bg-blue-500/20 text-blue-300'
+      color: 'bg-cyan-100 text-cyan-700'
     },
     {
       title: 'Average Expense',
-      value: `$${averageExpense.toFixed(2)}`,
+      value: formatCurrency(averageExpense),
       icon: FiTrendingUp,
-      color: 'bg-green-500/20 text-green-300'
+      color: 'bg-emerald-100 text-emerald-700'
     },
     {
       title: 'Highest Expense',
-      value: `$${highestExpense.toFixed(2)}`,
+      value: formatCurrency(highestExpense),
       icon: FiTrendingDown,
-      color: 'bg-orange-500/20 text-orange-300'
+      color: 'bg-amber-100 text-amber-700'
     }
   ];
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="text-white text-xl">Loading analytics...</div>
-      </div>
-    );
+    return <Loading />;
   }
 
   return (
-    <div className="text-white max-w-6xl mx-auto">
-      <header className="mb-10">
-        <h1 className="text-4xl font-bold mb-2">Analytics</h1>
-        <p className="text-white/70">Track your financial insights and statistics.</p>
+    <div className="space-y-8">
+      <header className="surface-card p-6 md:p-8">
+        <h1 className="page-title">Analytics</h1>
+        <p className="page-subtitle">Track your financial insights and spending patterns.</p>
       </header>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
         {stats.map((stat, index) => (
-          <div key={index} className="glassmorphic p-6 rounded-2xl">
-            <div className="flex items-center justify-between mb-4">
-              <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${stat.color}`}>
+          <Card key={index}>
+            <div className="mb-4 flex items-center justify-between">
+              <div className={`flex h-12 w-12 items-center justify-center rounded-xl ${stat.color}`}>
                 <stat.icon className="text-xl" />
               </div>
             </div>
-            <p className="text-white/70 text-sm mb-1">{stat.title}</p>
-            <p className="text-3xl font-bold">{stat.value}</p>
-          </div>
+            <p className="text-sm text-slate-500">{stat.title}</p>
+            <p className="metric-value mt-2">{stat.value}</p>
+          </Card>
         ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <div className="glassmorphic p-8 rounded-2xl">
-          <h2 className="text-2xl font-bold mb-6">Expense Overview</h2>
-          <div className="space-y-6">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+        <Card className="p-7">
+          <h2 className="section-title mb-6">Expense Overview</h2>
+          <div className="space-y-5">
             <div>
-              <div className="flex justify-between mb-2">
-                <span className="text-white/70">Spending Activity</span>
-                <span className="font-semibold">{totalExpenses > 0 ? 'Active' : 'No Activity'}</span>
+              <div className="mb-2 flex justify-between text-sm">
+                <span className="text-slate-600">Spending Activity</span>
+                <span className="font-semibold text-slate-800">{totalExpenses > 0 ? 'Active' : 'No Activity'}</span>
               </div>
-              <div className="w-full bg-white/10 rounded-full h-3">
-                <div 
-                  className="bg-gradient-to-r from-indigo-500 to-purple-500 h-3 rounded-full transition-all duration-500"
+              <div className="h-3 w-full rounded-full bg-slate-200">
+                <div
+                  className="h-3 rounded-full bg-gradient-to-r from-teal-600 to-emerald-500 transition-all duration-500"
                   style={{ width: totalExpenses > 0 ? '65%' : '0%' }}
                 />
               </div>
             </div>
-            
+
             <div>
-              <div className="flex justify-between mb-2">
-                <span className="text-white/70">Book Organization</span>
-                <span className="font-semibold">{totalBooks > 0 ? `${totalBooks} Books` : 'No Books'}</span>
+              <div className="mb-2 flex justify-between text-sm">
+                <span className="text-slate-600">Book Organization</span>
+                <span className="font-semibold text-slate-800">{totalBooks > 0 ? `${totalBooks} Books` : 'No Books'}</span>
               </div>
-              <div className="w-full bg-white/10 rounded-full h-3">
-                <div 
-                  className="bg-gradient-to-r from-green-500 to-teal-500 h-3 rounded-full transition-all duration-500"
+              <div className="h-3 w-full rounded-full bg-slate-200">
+                <div
+                  className="h-3 rounded-full bg-gradient-to-r from-cyan-500 to-sky-600 transition-all duration-500"
                   style={{ width: totalBooks > 0 ? Math.min(totalBooks * 20, 100) + '%' : '0%' }}
                 />
               </div>
             </div>
 
             <div>
-              <div className="flex justify-between mb-2">
-                <span className="text-white/70">Budget Health</span>
-                <span className="font-semibold">{totalExpenses > 0 ? 'Good' : 'N/A'}</span>
+              <div className="mb-2 flex justify-between text-sm">
+                <span className="text-slate-600">Budget Health</span>
+                <span className="font-semibold text-slate-800">{totalExpenses > 0 ? 'Good' : 'N/A'}</span>
               </div>
-              <div className="w-full bg-white/10 rounded-full h-3">
-                <div 
-                  className="bg-gradient-to-r from-yellow-500 to-orange-500 h-3 rounded-full transition-all duration-500"
+              <div className="h-3 w-full rounded-full bg-slate-200">
+                <div
+                  className="h-3 rounded-full bg-gradient-to-r from-amber-500 to-orange-600 transition-all duration-500"
                   style={{ width: '80%' }}
                 />
               </div>
             </div>
           </div>
-        </div>
+        </Card>
 
-        <div className="glassmorphic p-8 rounded-2xl">
-          <h2 className="text-2xl font-bold mb-6">Quick Insights</h2>
+        <Card className="p-7">
+          <h2 className="section-title mb-6">Quick Insights</h2>
           <div className="space-y-4">
-            <div className="flex items-start gap-4 p-4 bg-white/5 rounded-xl">
-              <div className="w-10 h-10 bg-indigo-500/20 rounded-lg flex items-center justify-center flex-shrink-0">
-                <FiTrendingUp className="text-indigo-300" />
+            <div className="flex items-start gap-4 rounded-xl border border-slate-200 bg-white/70 p-4">
+              <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-teal-100 text-teal-700">
+                <FiTrendingUp />
               </div>
               <div>
-                <h3 className="font-semibold mb-1">Spending Trend</h3>
-                <p className="text-white/70 text-sm">
-                  {totalExpenses > 0 
-                    ? `You've recorded $${totalExpenses.toFixed(2)} in total expenses across ${totalBooks} book${totalBooks !== 1 ? 's' : ''}.`
+                <h3 className="mb-1 font-semibold text-slate-800">Spending Trend</h3>
+                <p className="text-sm text-slate-600">
+                  {totalExpenses > 0
+                    ? `You've recorded ${formatCurrency(totalExpenses)} in total expenses across ${totalBooks} book${totalBooks !== 1 ? 's' : ''}.`
                     : 'Start adding expenses to see your spending trends.'
                   }
                 </p>
               </div>
             </div>
 
-            <div className="flex items-start gap-4 p-4 bg-white/5 rounded-xl">
-              <div className="w-10 h-10 bg-green-500/20 rounded-lg flex items-center justify-center flex-shrink-0">
-                <FiDollarSign className="text-green-300" />
+            <div className="flex items-start gap-4 rounded-xl border border-slate-200 bg-white/70 p-4">
+              <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700">
+                <FiDollarSign />
               </div>
               <div>
-                <h3 className="font-semibold mb-1">Average Transaction</h3>
-                <p className="text-white/70 text-sm">
-                  {averageExpense > 0 
-                    ? `Your average expense is $${averageExpense.toFixed(2)} per transaction.`
+                <h3 className="mb-1 font-semibold text-slate-800">Average Transaction</h3>
+                <p className="text-sm text-slate-600">
+                  {averageExpense > 0
+                    ? `Your average expense is ${formatCurrency(averageExpense)} per transaction.`
                     : 'Add expenses to calculate your average transaction amount.'
                   }
                 </p>
               </div>
             </div>
 
-            <div className="flex items-start gap-4 p-4 bg-white/5 rounded-xl">
-              <div className="w-10 h-10 bg-orange-500/20 rounded-lg flex items-center justify-center flex-shrink-0">
-                <FiTrendingDown className="text-orange-300" />
+            <div className="flex items-start gap-4 rounded-xl border border-slate-200 bg-white/70 p-4">
+              <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-700">
+                <FiTrendingDown />
               </div>
               <div>
-                <h3 className="font-semibold mb-1">Top Expense</h3>
-                <p className="text-white/70 text-sm">
-                  {highestExpense > 0 
-                    ? `Your highest single expense was $${highestExpense.toFixed(2)}.`
+                <h3 className="mb-1 font-semibold text-slate-800">Top Expense</h3>
+                <p className="text-sm text-slate-600">
+                  {highestExpense > 0
+                    ? `Your highest single expense was ${formatCurrency(highestExpense)}.`
                     : 'No expenses recorded yet.'
                   }
                 </p>
               </div>
             </div>
           </div>
-        </div>
+        </Card>
       </div>
     </div>
   );

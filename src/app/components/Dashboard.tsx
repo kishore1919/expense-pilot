@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { FiPlus, FiMoreVertical, FiSearch } from 'react-icons/fi';
+import { FiArrowRight, FiBookOpen, FiClock, FiPlus, FiSearch } from 'react-icons/fi';
 import { FaBook } from 'react-icons/fa';
 import Card from './Card';
 import AddBookModal from './AddBookModal';
@@ -17,14 +17,16 @@ interface Book {
 }
 
 const EmptyState = ({ setIsModalOpen }: { setIsModalOpen: (isOpen: boolean) => void }) => (
-  <div className="text-center py-20 px-10 rounded-2xl glassmorphic">
-    <div className="w-24 h-24 bg-white/20 text-white rounded-full mx-auto flex items-center justify-center mb-6">
-      <FaBook className="text-4xl" />
+  <div className="empty-state">
+    <div className="mb-5 flex h-20 w-20 items-center justify-center rounded-full bg-teal-100 text-teal-700">
+      <FaBook className="text-3xl" />
     </div>
-    <h2 className="text-2xl font-bold text-white mb-2">No expense books yet!</h2>
-    <p className="text-white/70 mb-6 max-w-sm mx-auto">To get started, create your first expense book. It&apos;s like a digital notebook for your finances.</p>
-    <button onClick={() => setIsModalOpen(true)} className="bg-white/90 text-indigo-600 px-8 py-4 rounded-xl font-semibold flex items-center shadow-lg hover:bg-white transition-all mx-auto">
-      <FiPlus className="mr-2 text-xl" /> Create Your First Book
+    <h2 className="section-title">No expense books yet</h2>
+    <p className="mt-2 max-w-sm text-slate-600">
+      Create your first book to organize expenses by goal, trip, or monthly budget.
+    </p>
+    <button onClick={() => setIsModalOpen(true)} className="btn-primary mt-7">
+      <FiPlus className="text-base" /> Create Your First Book
     </button>
   </div>
 );
@@ -32,6 +34,7 @@ const EmptyState = ({ setIsModalOpen }: { setIsModalOpen: (isOpen: boolean) => v
 const Dashboard = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [books, setBooks] = useState<Book[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
@@ -81,110 +84,144 @@ const Dashboard = () => {
     router.push(`/book/${bookId}`);
   };
 
+  const filteredBooks = books.filter((book) =>
+    book.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   if (loading) {
     return <Loading />;
   }
 
   return (
-    <div className="text-white">
-      <header className="flex justify-between items-center mb-10">
-        <div>
-          <h1 className="text-4xl font-bold">Welcome Back!</h1>
-          <p className="text-white/70 mt-2">Here&apos;s your financial snapshot for today.</p>
+    <div className="space-y-8">
+      <header className="surface-card p-6 md:p-8">
+        <div className="flex flex-col justify-between gap-5 md:flex-row md:items-center">
+          <div>
+            <h1 className="page-title">Dashboard</h1>
+            <p className="page-subtitle">Your books, activity, and quick actions in one place.</p>
+          </div>
+          <button onClick={() => setIsModalOpen(true)} className="btn-primary w-full sm:w-auto">
+            <FiPlus className="text-base" /> New Expense Book
+          </button>
         </div>
       </header>
 
       {error && (
-        <div className="mb-6 p-4 bg-red-500/20 border border-red-500/50 rounded-xl text-red-200">
+        <div className="status-error">
           {error}
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-10">
-        <div className="lg:col-span-2">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-bold">Your Expense Books</h2>
+      <section className="grid grid-cols-1 gap-4 md:grid-cols-3">
+        <Card>
+          <p className="text-sm text-slate-500">Total Books</p>
+          <p className="metric-value mt-2">{books.length}</p>
+        </Card>
+        <Card>
+          <p className="text-sm text-slate-500">Books This Month</p>
+          <p className="metric-value mt-2">
+            {books.filter((book) => book.createdAt && book.createdAt !== 'Recently').length}
+          </p>
+        </Card>
+        <Card>
+          <p className="text-sm text-slate-500">Latest Update</p>
+          <p className="mt-2 flex items-center gap-2 text-sm font-semibold text-slate-700">
+            <FiClock className="text-teal-700" />
+            {books[0]?.createdAt ?? 'No activity yet'}
+          </p>
+        </Card>
+      </section>
+
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
+        <section className="xl:col-span-2">
+          <div className="mb-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <h2 className="section-title">Your Expense Books</h2>
             {books.length > 0 && (
-              <button onClick={() => setIsModalOpen(true)} className="bg-white/90 text-indigo-600 px-6 py-3 rounded-xl font-semibold flex items-center shadow-lg hover:bg-white transition-all ml-4 whitespace-nowrap">
-                <FiPlus className="mr-2 text-xl" /> Add New Book
-              </button>
+              <div className="relative w-full sm:max-w-sm">
+                <input
+                  type="text"
+                  placeholder="Search books..."
+                  value={searchQuery}
+                  onChange={(event) => setSearchQuery(event.target.value)}
+                  className="text-field pl-11"
+                />
+                <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+              </div>
             )}
           </div>
-          
-          {books.length > 0 && (
-            <div className="relative w-full max-w-lg mb-6">
-              <input 
-                type="text" 
-                placeholder="Search your books..." 
-                className="w-full border-none glassmorphic p-4 pl-12 rounded-xl focus:ring-2 focus:ring-white/50 transition-all outline-none"
-              />
-              <FiSearch className="w-5 h-5 absolute left-4 top-4 text-white/50" />
-            </div>
-          )}
 
           {books.length > 0 ? (
-            <div className="space-y-4">
-              {books.map((book) => (
-                <div key={book.id} onClick={() => handleBookClick(book.id)} className="glassmorphic p-5 rounded-2xl hover:bg-white/30 transition-all flex items-center justify-between group cursor-pointer">
-                  <div className="flex items-center">
-                    <div className={`w-16 h-16 bg-white/20 text-white rounded-2xl mr-5 flex items-center justify-center text-3xl`}>
-                      <FaBook />
+            filteredBooks.length > 0 ? (
+              <div className="space-y-3">
+                {filteredBooks.map((book) => (
+                  <button
+                    key={book.id}
+                    onClick={() => handleBookClick(book.id)}
+                    className="surface-card group flex w-full items-center justify-between p-4 text-left transition hover:-translate-y-0.5 hover:bg-white/95"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-teal-100 text-xl text-teal-700">
+                        <FaBook />
+                      </div>
+                      <div>
+                        <p className="font-semibold text-slate-900">{book.name}</p>
+                        <p className="text-sm text-slate-500">Created {book.createdAt}</p>
+                      </div>
                     </div>
-                    <div>
-                      <div className="font-bold text-lg">{book.name}</div>
-                      <div className="text-white/60 text-sm">{book.createdAt}</div>
+                    <div className="flex items-center gap-3">
+                      <span className="hidden text-sm font-semibold text-slate-500 sm:inline">Open book</span>
+                      <FiArrowRight className="text-slate-400 transition group-hover:translate-x-1 group-hover:text-teal-700" />
                     </div>
-                  </div>
-                  <div className="flex items-center">
-                    <div className="mr-10 text-right">
-                      <div className="font-extrabold text-2xl">$0</div>
-                      <div className="text-xs text-white/60 font-semibold tracking-wider uppercase">Balance</div>
-                    </div>
-                    <button className="p-3 bg-black/10 hover:bg-black/20 rounded-full transition-colors opacity-0 group-hover:opacity-100">
-                      <FiMoreVertical className="text-white/80" />
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <Card className="text-center">
+                <p className="text-slate-600">No books match your search.</p>
+                <button onClick={() => setSearchQuery('')} className="btn-secondary mt-4">
+                  Clear search
+                </button>
+              </Card>
+            )
           ) : (
             <EmptyState setIsModalOpen={setIsModalOpen} />
           )}
-        </div>
+        </section>
 
-        <div className="space-y-8">
+        <aside className="space-y-6">
           <Card>
-            <h3 className="font-bold text-xl mb-4">Quick Actions</h3>
+            <h3 className="section-title mb-4">Quick Actions</h3>
             <div className="space-y-3">
-                <button className="w-full text-left p-4 rounded-lg glassmorphic hover:bg-white/30 transition-colors flex items-center">
-                    <FiPlus className="mr-4 text-white/80"/> Add New Transaction
-                </button>
-                 <button onClick={() => setIsModalOpen(true)} className="w-full text-left p-4 rounded-lg glassmorphic hover:bg-white/30 transition-colors flex items-center">
-                    <FaBook className="mr-4 text-white/80"/> Create New Expense Book
-                </button>
+              <button className="btn-secondary w-full justify-start">
+                <FiPlus /> Add New Transaction
+              </button>
+              <button onClick={() => setIsModalOpen(true)} className="btn-secondary w-full justify-start">
+                <FiBookOpen /> Create New Expense Book
+              </button>
             </div>
           </Card>
           <Card>
-            <h3 className="font-bold text-xl mb-4">Recent Activity</h3>
-            <div className="space-y-4">
-              <div className="flex items-center">
-                <div className="w-10 h-10 bg-green-400/30 text-green-100 rounded-full flex items-center justify-center mr-4 font-bold">T</div>
+            <h3 className="section-title mb-4">Recent Activity</h3>
+            <div className="space-y-4 text-sm">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100 font-semibold text-emerald-700">T</div>
                 <div>
-                  <p className="font-semibold">+$50.00 for groceries</p>
-                  <p className="text-sm text-white/60">2 hours ago</p>
+                  <p className="font-semibold text-slate-800">Added groceries expense</p>
+                  <p className="text-slate-500">2 hours ago</p>
                 </div>
               </div>
-              <div className="flex items-center">
-                <div className="w-10 h-10 bg-red-400/30 text-red-100 rounded-full flex items-center justify-center mr-4 font-bold">M</div>
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-100 font-semibold text-amber-700">B</div>
                 <div>
-                  <p className="font-semibold">-$12.99 for movie ticket</p>
-                  <p className="text-sm text-white/60">Yesterday</p>
+                  <p className="font-semibold text-slate-800">Created a new expense book</p>
+                  <p className="text-slate-500">Yesterday</p>
                 </div>
               </div>
             </div>
           </Card>
-        </div>
+        </aside>
       </div>
+
       <AddBookModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onAddBook={handleAddBook} />
     </div>
   );

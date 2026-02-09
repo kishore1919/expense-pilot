@@ -27,15 +27,15 @@ export default function Login() {
   };
 
   return (
-    <div className="glassmorphic p-10 rounded-3xl shadow-2xl w-full max-w-md text-white">
-      <div className="text-center mb-8">
-        <div className="bg-white/20 w-16 h-16 flex items-center justify-center rounded-2xl mx-auto mb-4">
-          <FaBook className="text-white text-3xl" />
+    <div className="surface-strong w-full p-8 md:p-10">
+      <div className="mb-8 text-center">
+        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-teal-100 text-teal-700">
+          <FaBook className="text-2xl" />
         </div>
-        <h2 className="text-3xl font-bold">Welcome Back</h2>
-        <p className="text-white/70 mt-2">Log in to manage your expenses</p>
+        <h2 className="page-title !text-3xl">Welcome Back</h2>
+        <p className="page-subtitle">Log in to manage your expenses.</p>
       </div>
-      
+
       <form className="space-y-6" onSubmit={handleLogin}>
         <div className="space-y-4">
           <div>
@@ -45,7 +45,7 @@ export default function Login() {
               type="email"
               autoComplete="email"
               required
-              className="w-full border-none glassmorphic p-4 rounded-xl focus:ring-2 focus:ring-white/50 transition-all outline-none text-white placeholder-white/50"
+              className="text-field"
               placeholder="Email address"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -58,7 +58,7 @@ export default function Login() {
               type="password"
               autoComplete="current-password"
               required
-              className="w-full border-none glassmorphic p-4 rounded-xl focus:ring-2 focus:ring-white/50 transition-all outline-none text-white placeholder-white/50"
+              className="text-field"
               placeholder="Password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -66,22 +66,22 @@ export default function Login() {
           </div>
         </div>
 
-        {error && <p className="text-red-300 text-sm text-center bg-red-500/20 p-2 rounded-lg">{error}</p>}
+        {error && <p className="status-error text-center">{error}</p>}
 
         <div>
           <button
             type="submit"
-            className="w-full bg-white/90 text-indigo-600 px-6 py-4 rounded-xl font-bold shadow-lg hover:bg-white transition-all transform hover:scale-[1.02]"
+            className="btn-primary w-full"
           >
             Log in
           </button>
         </div>
       </form>
-      
-      <div className="mt-8 text-center">
-        <p className="text-white/70">
+
+      <div className="mt-8 text-center text-slate-600">
+        <p>
           Don&apos;t have an account?{' '}
-          <Link href="/signup" className="font-semibold text-white hover:underline">
+          <Link href="/signup" className="font-semibold text-teal-700 hover:text-teal-800 hover:underline">
             Sign up
           </Link>
         </p>

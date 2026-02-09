@@ -1,90 +1,114 @@
 'use client';
 
 import React, { useState } from 'react';
-import { FiUser, FiMail, FiMoon, FiBell, FiShield } from 'react-icons/fi';
+import { FiUser, FiMail, FiMoon, FiBell, FiShield, FiGlobe } from 'react-icons/fi';
+import Card from '../components/Card';
+import { useCurrency } from '../context/CurrencyContext';
 
 const SettingsPage = () => {
   const [notifications, setNotifications] = useState(true);
   const [darkMode, setDarkMode] = useState(true);
-
-
+  const { currency, setCurrency, currencyOptions } = useCurrency();
 
   return (
-    <div className="text-white max-w-4xl mx-auto">
-      <header className="mb-10">
-        <h1 className="text-4xl font-bold mb-2">Settings</h1>
-        <p className="text-white/70">Manage your account and preferences.</p>
+    <div className="space-y-8">
+      <header className="surface-card p-6 md:p-8">
+        <h1 className="page-title">Settings</h1>
+        <p className="page-subtitle">Manage your account and preferences.</p>
       </header>
 
       <div className="space-y-8">
-        <section className="glassmorphic p-8 rounded-2xl">
-          <h2 className="text-2xl font-bold mb-6 flex items-center">
-            <FiUser className="mr-3" /> Account Information
+        <Card className="p-7">
+          <h2 className="section-title mb-6 flex items-center gap-3">
+            <FiUser className="text-teal-700" /> Account Information
           </h2>
           <div className="space-y-4">
-            <div className="flex items-center justify-between py-3 border-b border-white/10">
+            <div className="flex items-center justify-between border-b border-slate-200 py-3">
               <div className="flex items-center">
-                <FiMail className="text-white/50 mr-3" />
-                <span className="text-white/70">Email</span>
+                <FiMail className="mr-3 text-slate-400" />
+                <span className="text-slate-600">Email</span>
               </div>
-              <span className="font-medium">Anonymous</span>
+              <span className="font-medium text-slate-800">Anonymous</span>
             </div>
-            <div className="flex items-center justify-between py-3 border-b border-white/10">
+            <div className="flex items-center justify-between border-b border-slate-200 py-3">
               <div className="flex items-center">
-                <FiShield className="text-white/50 mr-3" />
-                <span className="text-white/70">Account Status</span>
+                <FiShield className="mr-3 text-slate-400" />
+                <span className="text-slate-600">Account Status</span>
               </div>
-              <span className="font-medium text-green-400">Active</span>
+              <span className="rounded-full bg-emerald-100 px-3 py-1 text-sm font-semibold text-emerald-700">Active</span>
             </div>
             <div className="flex items-center justify-between py-3">
               <div className="flex items-center">
-                <FiUser className="text-white/50 mr-3" />
-                <span className="text-white/70">User ID</span>
+                <FiUser className="mr-3 text-slate-400" />
+                <span className="text-slate-600">User ID</span>
               </div>
-              <span className="font-medium text-sm text-white/50">Anonymous</span>
+              <span className="font-medium text-sm text-slate-500">Anonymous</span>
             </div>
           </div>
-        </section>
+        </Card>
 
-        <section className="glassmorphic p-8 rounded-2xl">
-          <h2 className="text-2xl font-bold mb-6 flex items-center">
-            <FiBell className="mr-3" /> Preferences
+        <Card className="p-7">
+          <h2 className="section-title mb-6 flex items-center gap-3">
+            <FiBell className="text-teal-700" /> Preferences
           </h2>
           <div className="space-y-4">
             <div className="flex items-center justify-between py-3">
               <div className="flex items-center">
-                <FiBell className="text-white/50 mr-3" />
+                <FiBell className="mr-3 text-slate-400" />
                 <div>
-                  <span className="block font-medium">Notifications</span>
-                  <span className="text-sm text-white/50">Receive updates about your expenses</span>
+                  <span className="block font-medium text-slate-800">Notifications</span>
+                  <span className="text-sm text-slate-500">Receive updates about your expenses</span>
                 </div>
               </div>
-              <button 
+              <button
                 onClick={() => setNotifications(!notifications)}
-                className={`w-14 h-7 rounded-full transition-colors relative ${notifications ? 'bg-indigo-500' : 'bg-white/20'}`}
+                className={`relative h-7 w-14 rounded-full transition-colors ${notifications ? 'bg-teal-700' : 'bg-slate-300'}`}
               >
-                <div className={`w-5 h-5 bg-white rounded-full absolute top-1 transition-transform ${notifications ? 'translate-x-8' : 'translate-x-1'}`} />
+                <div className={`absolute top-1 h-5 w-5 rounded-full bg-white transition-transform ${notifications ? 'translate-x-8' : 'translate-x-1'}`} />
               </button>
             </div>
             <div className="flex items-center justify-between py-3">
               <div className="flex items-center">
-                <FiMoon className="text-white/50 mr-3" />
+                <FiMoon className="mr-3 text-slate-400" />
                 <div>
-                  <span className="block font-medium">Dark Mode</span>
-                  <span className="text-sm text-white/50">Currently always enabled</span>
+                  <span className="block font-medium text-slate-800">Dark Mode</span>
+                  <span className="text-sm text-slate-500">Currently always enabled</span>
                 </div>
               </div>
-              <button 
+              <button
                 onClick={() => setDarkMode(!darkMode)}
-                className={`w-14 h-7 rounded-full transition-colors relative ${darkMode ? 'bg-indigo-500' : 'bg-white/20'}`}
+                className={`relative h-7 w-14 rounded-full transition-colors ${darkMode ? 'bg-teal-700' : 'bg-slate-300'}`}
               >
-                <div className={`w-5 h-5 bg-white rounded-full absolute top-1 transition-transform ${darkMode ? 'translate-x-8' : 'translate-x-1'}`} />
+                <div className={`absolute top-1 h-5 w-5 rounded-full bg-white transition-transform ${darkMode ? 'translate-x-8' : 'translate-x-1'}`} />
               </button>
             </div>
-          </div>
-        </section>
 
-        <div className="text-center text-white/50 text-sm pb-8">
+            <div className="flex flex-col gap-3 border-t border-slate-200 pt-4 md:flex-row md:items-center md:justify-between">
+              <div className="flex items-center">
+                <FiGlobe className="mr-3 text-slate-400" />
+                <div>
+                  <span className="block font-medium text-slate-800">Currency</span>
+                  <span className="text-sm text-slate-500">Used globally across all totals and expenses</span>
+                </div>
+              </div>
+              <div className="w-full md:w-72">
+                <select
+                  value={currency}
+                  onChange={(event) => setCurrency(event.target.value)}
+                  className="text-field"
+                >
+                  {currencyOptions.map((option) => (
+                    <option key={option.code} value={option.code}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
+        </Card>
+
+        <div className="pb-4 text-center text-sm text-slate-500">
           <p>Personal Expense Tracker v0.1.0</p>
           <p className="mt-1">Built with Next.js and Firebase</p>
         </div>

@@ -496,7 +496,7 @@ export default function MUIProvider({ children }: { children: React.ReactNode })
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      {mounted ? children : <div style={{ visibility: 'hidden' }}>{children}</div>}
+      {mounted ? children : <div suppressHydrationWarning style={{ visibility: 'hidden' }}>{children}</div>}
     </ThemeProvider>
   );
 }

@@ -1,5 +1,7 @@
 {
-  "projects": {},
+  "projects": {
+    "default": "test-99b87"
+  },
   "targets": {},
   "etags": {}
 }

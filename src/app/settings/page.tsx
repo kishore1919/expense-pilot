@@ -235,19 +235,20 @@ const CategoryManager: React.FC = () => {
   );
 };
 
-function getInitialNotificationsState(): boolean {
-  if (typeof window === 'undefined') return true;
-  try {
-    const savedNotifications = localStorage.getItem('pet_notifications');
-    return savedNotifications !== null ? savedNotifications === 'true' : true;
-  } catch {
-    return true;
-  }
-}
-
 export default function SettingsPage() {
-  const [notifications, setNotifications] = useState(getInitialNotificationsState);
+  // Default to 'true' at initial render and hydrate actual persisted value on mount to avoid
+  // server/client content differences that cause hydration warnings.
+  const [notifications, setNotifications] = useState<boolean>(true);
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    try {
+      const savedNotifications = localStorage.getItem('pet_notifications');
+      if (savedNotifications !== null) setNotifications(savedNotifications === 'true');
+    } catch {
+      // ignore
+    }
+  }, []);
   const { currency, setCurrency, currencyOptions } = useCurrency();
   const { isDarkMode, toggleDarkMode } = useTheme();
 

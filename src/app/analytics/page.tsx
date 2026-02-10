@@ -102,8 +102,23 @@ export default function AnalyticsPage() {
     return <Loading />;
   }
 
-  // Derive budget metrics (use a reasonable fallback budget if none configured)
-  const monthlyBudget = Math.max(1000, (typeof window !== 'undefined' && Number(localStorage.getItem('monthly_budget') || '0')) || (totalBooks * 1000));
+  // Manage monthlyBudget on the client to avoid SSR/client mismatches when reading localStorage
+  const [monthlyBudget, setMonthlyBudget] = useState<number>(Math.max(1000, totalBooks * 1000));
+
+  useEffect(() => {
+    try {
+      const stored = typeof window !== 'undefined' ? localStorage.getItem('monthly_budget') : null;
+      if (stored !== null) {
+        const n = Number(stored) || 0;
+        setMonthlyBudget(Math.max(1000, n || totalBooks * 1000));
+      } else {
+        setMonthlyBudget(Math.max(1000, totalBooks * 1000));
+      }
+    } catch {
+      setMonthlyBudget(Math.max(1000, totalBooks * 1000));
+    }
+  }, [totalBooks]);
+
   const spendingPercent = totalExpenses > 0 ? Math.min(Math.max(Math.round((totalExpenses / monthlyBudget) * 100), 0), 100) : 0;
   const healthPercent = totalExpenses > 0 ? Math.min(Math.max(Math.round(((monthlyBudget - totalExpenses) / monthlyBudget) * 100), 0), 100) : 100;
 

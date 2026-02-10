@@ -70,7 +70,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${bodyFont.variable} ${headingFont.variable}`}>
+      <body suppressHydrationWarning className={`${bodyFont.variable} ${headingFont.variable}`}>
         <ThemeProvider>
           <MUIProvider>
             <CurrencyProvider>

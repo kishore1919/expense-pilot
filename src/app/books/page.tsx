@@ -9,7 +9,9 @@ import {
   FiEdit2,
   FiCopy,
   FiUserPlus,
-  FiChevronDown
+  FiChevronDown,
+  FiChevronLeft,
+  FiChevronRight,
 } from 'react-icons/fi';
 import { FaBook } from 'react-icons/fa';
 import {
@@ -32,6 +34,7 @@ import {
   DialogContent,
   DialogContentText,
   DialogActions,
+  Checkbox,
 } from '@mui/material';
 import { collection, getDocs, addDoc, deleteDoc, doc, query, orderBy, writeBatch } from "firebase/firestore";
 import { db } from '../firebase';
@@ -69,8 +72,18 @@ export default function BooksPage() {
   const [sortBy, setSortBy] = useState<'last-updated' | 'name'>('last-updated');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<string | string[] | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [page, setPage] = useState<number>(1);
+  const [pageSize, setPageSize] = useState<number>(10);
+
+  // Keep page at 1 and clear selection when the search, sort or pageSize changes for predictable UX
+  useEffect(() => {
+    setPage(1);
+    setSelectedIds([]);
+  }, [searchQuery, sortBy, pageSize]);
+
   const router = useRouter();
   const { formatCurrency } = useCurrency();
 
@@ -147,29 +160,47 @@ export default function BooksPage() {
   const handleConfirmDelete = async () => {
     if (!deleteTarget) return;
     setIsDeleting(true);
-    const id = deleteTarget;
-    try {
-      // Delete expenses in the book in chunks to avoid Firestore batch limits
-      const expensesSnap = await getDocs(collection(db, `books/${id}/expenses`));
-      const expenseDocs = expensesSnap.docs;
-      const chunkSize = 499; // keep below 500 per batch
 
-      for (let i = 0; i < expenseDocs.length; i += chunkSize) {
-        const batch = writeBatch(db);
-        const chunk = expenseDocs.slice(i, i + chunkSize);
-        chunk.forEach(d => batch.delete(doc(db, `books/${id}/expenses`, d.id)));
-        await batch.commit();
+    // Normalize to an array of string ids and filter invalid values
+    const idsToDelete = (Array.isArray(deleteTarget) ? deleteTarget : [deleteTarget]).filter(id => typeof id === 'string');
+    if (idsToDelete.length === 0) {
+      setError('No valid items selected for deletion.');
+      setIsDeleting(false);
+      setDeleteTarget(null);
+      return;
+    }
+
+    try {
+      for (const bookId of idsToDelete) {
+        try {
+          // Fetch expense docs for this book and delete them in chunks using document refs
+          const expensesSnap = await getDocs(collection(db, 'books', bookId, 'expenses'));
+          const expenseRefs = expensesSnap.docs.map(d => d.ref);
+          const chunkSize = 499; // keep below 500 per batch
+
+          for (let i = 0; i < expenseRefs.length; i += chunkSize) {
+            const batch = writeBatch(db);
+            const chunk = expenseRefs.slice(i, i + chunkSize);
+            chunk.forEach(ref => batch.delete(ref));
+            await batch.commit();
+          }
+
+          // Delete the book document itself (in its own operation)
+          await deleteDoc(doc(db, 'books', bookId));
+        } catch (innerErr) {
+          console.error(`Failed deleting book ${bookId}:`, innerErr);
+          // rethrow to be caught by outer catch and abort remaining deletions
+          throw innerErr;
+        }
       }
 
-      // Delete the book document itself (in its own operation)
-      await deleteDoc(doc(db, 'books', id));
-
-      setBooks(prev => prev.filter(b => b.id !== id));
+      setBooks(prev => prev.filter(b => !idsToDelete.includes(b.id)));
+      setSelectedIds([]);
       setError(null);
     } catch (e) {
-      console.error('Error deleting book:', e);
+      console.error('Error deleting book(s):', e);
       const msg = e instanceof Error ? e.message : String(e);
-      setError(`Failed to delete book: ${msg}`);
+      setError(`Failed to delete book(s): ${msg}`);
     } finally {
       setIsDeleting(false);
       setDeleteTarget(null);
@@ -193,6 +224,18 @@ export default function BooksPage() {
     return result;
   }, [books, searchQuery, sortBy]);
 
+  // Pagination derived values
+  const totalFiltered = filteredAndSortedBooks.length;
+  const totalPages = Math.max(1, Math.ceil(totalFiltered / pageSize));
+  const startIndex = totalFiltered === 0 ? 0 : (page - 1) * pageSize + 1;
+  const endIndex = Math.min(page * pageSize, totalFiltered);
+  const displayedBooks = filteredAndSortedBooks.slice((page - 1) * pageSize, page * pageSize);
+
+  // Clamp page after render when totalPages changes
+  useEffect(() => {
+    if (page > totalPages) setPage(1);
+  }, [page, totalPages]);
+
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
       
@@ -205,12 +248,20 @@ export default function BooksPage() {
         alignItems: 'center' 
       }}>
         
-        {/* Search Bar */}
+        {/* Search & Select */}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mr: 1 }}>
+          <Checkbox
+            size="small"
+            checked={selectedIds.length > 0 && selectedIds.length === filteredAndSortedBooks.length}
+            indeterminate={selectedIds.length > 0 && selectedIds.length < filteredAndSortedBooks.length}
+            onChange={(e) => e.target.checked ? setSelectedIds(filteredAndSortedBooks.map(b => b.id)) : setSelectedIds([])}
+          />
+        </Box>
         <TextField
           placeholder="Search by book name..."
           size="small"
           value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
+          onChange={(e) => { setSearchQuery(e.target.value); setSelectedIds([]); }}
           sx={{ 
             flex: 1, 
             width: '100%',
@@ -278,12 +329,34 @@ export default function BooksPage() {
 
       {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
 
-      {/* --- Books List --- */}
-      <Box sx={{ minHeight: 300 }}>
+  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+    <Typography variant="body2" color="text.secondary">
+      Showing {startIndex} - {endIndex} of {totalFiltered} entries
+    </Typography>
+    <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+      <Select size="small" value={page} onChange={(e) => setPage(Number(e.target.value))} sx={{ height: 32 }}>
+        {Array.from({ length: totalPages }).map((_, i) => <MenuItem key={i} value={i + 1}>Page {i + 1}</MenuItem>)}
+      </Select>
+      <Typography variant="body2">of {totalPages}</Typography>
+      <IconButton size="small" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page <= 1}><FiChevronLeft /></IconButton>
+      <IconButton size="small" onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page >= totalPages}><FiChevronRight /></IconButton>
+      <FormControl size="small" sx={{ minWidth: 80 }}>
+        <Select value={pageSize} onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }}>
+          <MenuItem value={10}>10</MenuItem>
+          <MenuItem value={25}>25</MenuItem>
+          <MenuItem value={50}>50</MenuItem>
+          <MenuItem value={100}>100</MenuItem>
+        </Select>
+      </FormControl>
+    </Box>
+  </Box>
+
+  {/* --- Books List --- */}
+  <Box sx={{ minHeight: 300 }}>
         {loading ? (
           [1, 2, 3].map((i) => <ListSkeleton key={i} />)
         ) : filteredAndSortedBooks.length > 0 ? (
-          filteredAndSortedBooks.map((book) => (
+          displayedBooks.map((book) => (
             <Paper
               key={book.id}
               elevation={0}
@@ -305,6 +378,19 @@ export default function BooksPage() {
               }}
               onClick={() => handleBookClick(book.id)}
             >
+              {/* Selector */}
+              <Box sx={{ display: 'flex', alignItems: 'center', pr: 1 }}>
+                <Checkbox
+                  size="small"
+                  checked={selectedIds.includes(book.id)}
+                  onChange={(e) => {
+                    e.stopPropagation();
+                    const newSel = e.target.checked ? [...selectedIds, book.id] : selectedIds.filter(id => id !== book.id);
+                    setSelectedIds(newSel);
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                />
+              </Box>
               {/* Icon */}
               <Box sx={{ 
                 width: 48, 
@@ -342,7 +428,7 @@ export default function BooksPage() {
 
               {/* Actions */}
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }} onClick={(e) => e.stopPropagation()}>
-                <IconButton 
+                {/* <IconButton 
                   onClick={(e) => {
                      e.stopPropagation();
                      setDeleteTarget(book.id);
@@ -351,7 +437,7 @@ export default function BooksPage() {
                   color="error"
                 >
                   <FiTrash2 size={18} />
-                </IconButton>
+                </IconButton> */}
                 <IconButton 
                   onClick={() => handleBookClick(book.id)}
                   size="small" 
@@ -370,8 +456,17 @@ export default function BooksPage() {
         )}
       </Box>
 
-      {/* --- Quick Add / Suggestions Section --- */}
-      <Paper elevation={0} sx={{ 
+      {/* --- Contextual Delete (Selected Items) --- */}
+  {selectedIds.length > 0 && (
+    <Box sx={{ position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)', bgcolor: (theme) => theme.palette.mode === 'dark' ? '#0B1220' : 'white', p: 2, borderRadius: 2, boxShadow: 3, display: 'flex', gap: 2, alignItems: 'center', zIndex: 10 }}>
+      <Typography variant="body2">{selectedIds.length} items selected</Typography>
+      <Button variant="contained" color="error" size="small" onClick={() => setDeleteTarget(selectedIds)}>Delete Selected</Button>
+      <Button variant="outlined" size="small" onClick={() => setSelectedIds([])}>Cancel</Button>
+    </Box>
+  )}
+
+  {/* --- Quick Add / Suggestions Section --- */}
+  <Paper elevation={0} sx={{ 
         p: 3, 
         mt: 4, 
         border: (theme) => `1px solid ${theme.palette.mode === 'dark' ? '#334155' : '#f0f0f0'}` ,
@@ -382,7 +477,6 @@ export default function BooksPage() {
         flexDirection: { xs: 'column', md: 'row' },
         backgroundColor: (theme) => theme.palette.mode === 'dark' ? '#0F172A' : undefined
       }}>
-
         <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
            <Box sx={{ 
              width: 48, 
@@ -439,7 +533,7 @@ export default function BooksPage() {
         <DialogTitle>Confirm Deletion</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            Are you sure you want to delete this book and all its expenses? This cannot be undone.
+            {Array.isArray(deleteTarget) ? `Are you sure you want to delete ${deleteTarget.length} books and all their expenses? This cannot be undone.` : 'Are you sure you want to delete this book and all its expenses? This cannot be undone.'}
           </DialogContentText>
         </DialogContent>
         <DialogActions>

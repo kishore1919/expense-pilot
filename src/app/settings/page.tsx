@@ -38,10 +38,13 @@ import {
   FiTrash2,
   FiTag,
 } from 'react-icons/fi';
-import { collection, getDocs, addDoc, deleteDoc, doc, query, orderBy } from 'firebase/firestore';
-import { db } from '../firebase';
+import { collection, getDocs, addDoc, deleteDoc, doc, query, orderBy, where } from 'firebase/firestore';
+import { auth, db } from '../firebase';
 import { useCurrency } from '../context/CurrencyContext';
 import { useTheme } from '../context/ThemeContext';
+import { useAuthState } from 'react-firebase-hooks/auth';
+
+const CORE_CATEGORIES = ['Food', 'Travel', 'Medical', 'Shopping', 'Bills', 'Misc'];
 
 // Skeleton loader
 const SettingSkeleton = () => (
@@ -58,6 +61,7 @@ const SettingSkeleton = () => (
 );
 
 const CategoryManager: React.FC = () => {
+  const [user] = useAuthState(auth);
   const [categories, setCategories] = useState<Array<{ id: string; name: string }>>([]);
   const [newCategory, setNewCategory] = useState('');
   const [loadingCats, setLoadingCats] = useState(true);
@@ -67,11 +71,17 @@ const CategoryManager: React.FC = () => {
 
   useEffect(() => {
     const fetchCategories = async () => {
+      if (!user) return;
       try {
         setLoadingCats(true);
-        const q = query(collection(db, 'categories'), orderBy('name', 'asc'));
+        const q = query(
+          collection(db, 'categories'),
+          where('userId', '==', user.uid)
+        );
         const querySnapshot = await getDocs(q);
-        const cats = querySnapshot.docs.map(d => ({ id: d.id, name: d.data().name }));
+        const cats = querySnapshot.docs
+          .map(d => ({ id: d.id, name: d.data().name }))
+          .sort((a, b) => a.name.localeCompare(b.name));
         setCategories(cats);
         setError(null);
       } catch (err) {
@@ -83,16 +93,26 @@ const CategoryManager: React.FC = () => {
     };
 
     fetchCategories();
-  }, []);
+  }, [user]);
 
   const handleAddCategory = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    if (!newCategory.trim()) return;
+    if (!newCategory.trim() || !user) return;
+
+    const name = newCategory.trim();
+    if (CORE_CATEGORIES.some(c => c.toLowerCase() === name.toLowerCase())) {
+      setError('This category already exists in core categories.');
+      return;
+    }
 
     try {
-      const docRef = await addDoc(collection(db, 'categories'), { name: newCategory.trim() });
-      setCategories((prev) => [...prev, { id: docRef.id, name: newCategory.trim() }].sort((a,b)=>a.name.localeCompare(b.name)));
+      const docRef = await addDoc(collection(db, 'categories'), {
+        name: name,
+        userId: user.uid
+      });
+      setCategories((prev) => [...prev, { id: docRef.id, name: name }].sort((a,b)=>a.name.localeCompare(b.name)));
       setNewCategory('');
+      setError(null);
     } catch (err) {
       console.error('Error adding category:', err);
       setError('Failed to add category.');
@@ -120,6 +140,12 @@ const CategoryManager: React.FC = () => {
       setDeleteCatTarget(null);
     }
   };
+
+  // Combine core and user categories for display
+  const allCategories = [
+    ...CORE_CATEGORIES.map(name => ({ id: `core-${name}`, name, isCore: true })),
+    ...categories.map(c => ({ ...c, isCore: false }))
+  ].sort((a, b) => a.name.localeCompare(b.name));
 
   return (
     <Box>
@@ -157,33 +183,29 @@ const CategoryManager: React.FC = () => {
             <Skeleton key={i} variant="rounded" height={48} />
           ))}
         </Box>
-      ) : categories.length === 0 ? (
-        <Paper variant="outlined" sx={{ p: 3, textAlign: 'center', backgroundColor: (theme) => theme.palette.mode === 'dark' ? '#0F172A' : undefined, borderColor: (theme) => theme.palette.mode === 'dark' ? '#334155' : undefined }}>
-          <Typography color="text.secondary">
-            No categories yet. Add your first one above.
-          </Typography>
-        </Paper>
       ) : (
         <Paper variant="outlined" sx={{ backgroundColor: (theme) => theme.palette.mode === 'dark' ? '#0F172A' : undefined, borderColor: (theme) => theme.palette.mode === 'dark' ? '#334155' : undefined, borderRadius: 2, overflow: 'hidden' }}>
           <List disablePadding>
-            {categories.map((c, index) => (
+            {allCategories.map((c, index) => (
               <React.Fragment key={c.id}>
                 {index > 0 && <Divider sx={{ borderColor: (theme) => theme.palette.mode === 'dark' ? '#334155' : undefined }} />}
                 <ListItem
                   secondaryAction={
-                    <IconButton 
-                      edge="end" 
-                      onClick={() => handleDeleteCategory(c.id)}
-                      sx={{
-                        color: 'text.secondary',
-                        '&:hover': {
-                          color: 'error.main',
-                          bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(239,68,68,0.08)' : 'error.bg',
-                        },
-                      }}
-                    >
-                      <FiTrash2 size={18} />
-                    </IconButton>
+                    !c.isCore && (
+                      <IconButton 
+                        edge="end" 
+                        onClick={() => handleDeleteCategory(c.id)}
+                        sx={{
+                          color: 'text.secondary',
+                          '&:hover': {
+                            color: 'error.main',
+                            bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(239,68,68,0.08)' : 'error.bg',
+                          },
+                        }}
+                      >
+                        <FiTrash2 size={18} />
+                      </IconButton>
+                    )
                   }
                   sx={{
                     py: 1.5,
@@ -198,7 +220,7 @@ const CategoryManager: React.FC = () => {
                       width: 8,
                       height: 8,
                       borderRadius: '50%',
-                      bgcolor: 'primary.main',
+                      bgcolor: c.isCore ? 'secondary.main' : 'primary.main',
                       mr: 2,
                       flexShrink: 0,
                     }}
@@ -206,6 +228,7 @@ const CategoryManager: React.FC = () => {
                   <ListItemText 
                     primary={c.name}
                     primaryTypographyProps={{ fontWeight: 500 }}
+                    secondary={c.isCore ? 'Core Category' : null}
                   />
                 </ListItem>
               </React.Fragment>
@@ -236,6 +259,7 @@ const CategoryManager: React.FC = () => {
 };
 
 export default function SettingsPage() {
+  const [user] = useAuthState(auth);
   // Default to 'true' at initial render and hydrate actual persisted value on mount to avoid
   // server/client content differences that cause hydration warnings.
   const [notifications, setNotifications] = useState<boolean>(true);
@@ -270,7 +294,7 @@ export default function SettingsPage() {
     {
       icon: <FiMail size={20} />,
       label: 'Email',
-      value: 'Anonymous',
+      value: user?.email || 'N/A',
     },
     {
       icon: <FiShield size={20} />,
@@ -280,7 +304,7 @@ export default function SettingsPage() {
     {
       icon: <FiUser size={20} />,
       label: 'User ID',
-      value: <Typography variant="body2" color="text.secondary">Anonymous</Typography>,
+      value: <Typography variant="body2" color="text.secondary" sx={{ wordBreak: 'break-all' }}>{user?.uid || 'N/A'}</Typography>,
     },
   ];
 

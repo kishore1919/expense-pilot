@@ -1,6 +1,16 @@
 'use client';
 
 import React, { useState } from 'react';
+import { 
+  Dialog, 
+  DialogTitle, 
+  DialogContent, 
+  DialogActions, 
+  Button, 
+  TextField, 
+  IconButton, 
+  Typography 
+} from '@mui/material';
 import { FiX } from 'react-icons/fi';
 
 interface AddBookModalProps {
@@ -21,46 +31,53 @@ const AddBookModal: React.FC<AddBookModalProps> = ({ isOpen, onClose, onAddBook 
   };
 
   const handleClose = () => {
-    // Reset form state before closing so inputs do not persist
     setBookName('');
     onClose();
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div className="modal-overlay">
-      <div className="modal-card">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="section-title">Create New Expense Book</h2>
-          <button onClick={handleClose} className="icon-button" aria-label="Close dialog">
-            <FiX />
-          </button>
-        </div>
-        <form onSubmit={handleSubmit}>
-          <div className="mb-6">
-            <label htmlFor="bookName" className="field-label">Book Name</label>
-            <input
-              type="text"
-              id="bookName"
-              value={bookName}
-              onChange={(e) => setBookName(e.target.value)}
-              placeholder="e.g., Groceries, Vacation, etc."
-              className="text-field"
-              required
-            />
-          </div>
-          <div className="flex justify-end gap-3">
-            <button type="button" onClick={handleClose} className="btn-secondary">
-              Cancel
-            </button>
-            <button type="submit" className="btn-primary">
-              Create Book
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+    <Dialog 
+      open={isOpen} 
+      onClose={handleClose}
+      fullWidth
+      maxWidth="xs"
+      PaperProps={{
+        sx: { borderRadius: '28px' }
+      }}
+    >
+      <DialogTitle sx={{ m: 0, p: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Typography variant="h6" component="div" fontWeight="500">
+          Create New Book
+        </Typography>
+        <IconButton onClick={handleClose} size="large" sx={{ color: 'text.secondary' }}>
+          <FiX />
+        </IconButton>
+      </DialogTitle>
+      
+      <form onSubmit={handleSubmit}>
+        <DialogContent sx={{ p: 3, pt: 0 }}>
+          <TextField
+            autoFocus
+            label="Book Name"
+            fullWidth
+            value={bookName}
+            onChange={(e) => setBookName(e.target.value)}
+            placeholder="e.g., Groceries, Vacation, etc."
+            required
+            variant="outlined"
+          />
+        </DialogContent>
+
+        <DialogActions sx={{ p: 3, pt: 0 }}>
+          <Button onClick={handleClose} color="inherit">
+            Cancel
+          </Button>
+          <Button type="submit" variant="contained" color="primary" disableElevation>
+            Create Book
+          </Button>
+        </DialogActions>
+      </form>
+    </Dialog>
   );
 };
 

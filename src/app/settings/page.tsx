@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { FiUser, FiMail, FiMoon, FiBell, FiShield, FiGlobe } from 'react-icons/fi';
+import { Typography, Box, Switch, Select, MenuItem, FormControl, InputLabel, Divider, Chip } from '@mui/material';
 import Card from '../components/Card';
 import { useCurrency } from '../context/CurrencyContext';
 import { useTheme } from '../context/ThemeContext';
@@ -38,101 +39,101 @@ const SettingsPage = () => {
 
       <div className="space-y-8">
         <Card className="p-7">
-          <h2 className="section-title mb-6 flex items-center gap-3">
-            <FiUser className="text-teal-700" /> Account Information
-          </h2>
-          <div className="space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-200 py-3">
-              <div className="flex items-center">
-                <FiMail className="mr-3 text-slate-400" />
-                <span className="text-slate-600">Email</span>
-              </div>
-              <span className="font-medium text-slate-800">Anonymous</span>
-            </div>
-            <div className="flex items-center justify-between border-b border-slate-200 py-3">
-              <div className="flex items-center">
-                <FiShield className="mr-3 text-slate-400" />
-                <span className="text-slate-600">Account Status</span>
-              </div>
-              <span className="rounded-full bg-emerald-100 px-3 py-1 text-sm font-semibold text-emerald-700">Active</span>
-            </div>
-            <div className="flex items-center justify-between py-3">
-              <div className="flex items-center">
-                <FiUser className="mr-3 text-slate-400" />
-                <span className="text-slate-600">User ID</span>
-              </div>
-              <span className="font-medium text-sm text-slate-500">Anonymous</span>
-            </div>
-          </div>
+          <Typography variant="h5" sx={{ mb: 4, display: 'flex', alignItems: 'center', gap: 2, fontWeight: 500 }}>
+            <FiUser color="var(--md-sys-color-primary)" /> Account Information
+          </Typography>
+          
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <FiMail color="var(--md-sys-color-outline)" />
+                <Typography color="text.secondary">Email</Typography>
+              </Box>
+              <Typography fontWeight="500">Anonymous</Typography>
+            </Box>
+            
+            <Divider />
+
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <FiShield color="var(--md-sys-color-outline)" />
+                <Typography color="text.secondary">Account Status</Typography>
+              </Box>
+              <Chip label="Active" color="success" size="small" sx={{ fontWeight: 600 }} />
+            </Box>
+
+            <Divider />
+
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <FiUser color="var(--md-sys-color-outline)" />
+                <Typography color="text.secondary">User ID</Typography>
+              </Box>
+              <Typography variant="body2" color="text.secondary">Anonymous</Typography>
+            </Box>
+          </Box>
         </Card>
 
         <Card className="p-7">
-          <h2 className="section-title mb-6 flex items-center gap-3">
-            <FiBell className="text-teal-700" /> Preferences
-          </h2>
-          <div className="space-y-4">
-            <div className="flex items-center justify-between py-3">
-              <div className="flex items-center">
-                <FiBell className="mr-3 text-slate-400" />
-                <div>
-                  <span className="block font-medium text-slate-800">Notifications</span>
-                  <span className="text-sm text-slate-500">Receive updates about your expenses</span>
-                </div>
-              </div>
-              <button
-                onClick={toggleNotifications}
-                className={`relative h-7 w-14 rounded-full transition-colors ${notifications ? 'bg-teal-700' : 'bg-slate-300'}`}
-              >
-                <div className={`absolute top-1 h-5 w-5 rounded-full bg-white transition-transform ${notifications ? 'translate-x-8' : 'translate-x-1'}`} />
-              </button>
-            </div>
-            <div className="flex items-center justify-between py-3">
-              <div className="flex items-center">
-                <FiMoon className="mr-3 text-slate-400" />
-                <div>
-                  <span className="block font-medium text-slate-800">Dark Mode</span>
-                  <span className="text-sm text-slate-500">Switch between light and dark themes</span>
-                </div>
-              </div>
-              <button
-                onClick={toggleDarkMode}
-                className={`relative h-7 w-14 rounded-full transition-colors ${isDarkMode ? 'bg-teal-700' : 'bg-slate-300'}`}
-                aria-label="Toggle dark mode"
-                aria-pressed={isDarkMode}
-              >
-                <div className={`absolute top-1 h-5 w-5 rounded-full bg-white transition-transform ${isDarkMode ? 'translate-x-8' : 'translate-x-1'}`} />
-              </button>
-            </div>
+          <Typography variant="h5" sx={{ mb: 4, display: 'flex', alignItems: 'center', gap: 2, fontWeight: 500 }}>
+            <FiBell color="var(--md-sys-color-primary)" /> Preferences
+          </Typography>
 
-            <div className="flex flex-col gap-3 border-t border-slate-200 pt-4 md:flex-row md:items-center md:justify-between">
-              <div className="flex items-center">
-                <FiGlobe className="mr-3 text-slate-400" />
-                <div>
-                  <span className="block font-medium text-slate-800">Currency</span>
-                  <span className="text-sm text-slate-500">Used globally across all totals and expenses</span>
-                </div>
-              </div>
-              <div className="w-full md:w-72">
-                <select
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <FiBell size={24} color="var(--md-sys-color-outline)" />
+                <Box>
+                  <Typography fontWeight="500">Notifications</Typography>
+                  <Typography variant="body2" color="text.secondary">Receive updates about your expenses</Typography>
+                </Box>
+              </Box>
+              <Switch checked={notifications} onChange={toggleNotifications} color="primary" />
+            </Box>
+
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <FiMoon size={24} color="var(--md-sys-color-outline)" />
+                <Box>
+                  <Typography fontWeight="500">Dark Mode</Typography>
+                  <Typography variant="body2" color="text.secondary">Switch between light and dark themes</Typography>
+                </Box>
+              </Box>
+              <Switch checked={isDarkMode} onChange={toggleDarkMode} color="primary" />
+            </Box>
+
+            <Divider />
+
+            <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, justifyContent: 'space-between', alignItems: { xs: 'flex-start', md: 'center' }, gap: 3 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <FiGlobe size={24} color="var(--md-sys-color-outline)" />
+                <Box>
+                  <Typography fontWeight="500">Currency</Typography>
+                  <Typography variant="body2" color="text.secondary">Used globally across all totals and expenses</Typography>
+                </Box>
+              </Box>
+              <FormControl sx={{ minWidth: 200, width: { xs: '100%', md: 'auto' } }}>
+                <Select
                   value={currency}
-                  onChange={(event) => setCurrency(event.target.value)}
-                  className="text-field"
+                  onChange={(event) => setCurrency(event.target.value as string)}
+                  size="small"
+                  sx={{ borderRadius: '12px' }}
                 >
                   {currencyOptions.map((option) => (
-                    <option key={option.code} value={option.code}>
+                    <MenuItem key={option.code} value={option.code}>
                       {option.label}
-                    </option>
+                    </MenuItem>
                   ))}
-                </select>
-              </div>
-            </div>
-          </div>
+                </Select>
+              </FormControl>
+            </Box>
+          </Box>
         </Card>
 
-        <div className="pb-4 text-center text-sm text-slate-500">
-          <p>Personal Expense Tracker v0.1.0</p>
-          <p className="mt-1">Built with Next.js and Firebase</p>
-        </div>
+        <Box sx={{ pb: 4, textAlign: 'center' }}>
+          <Typography variant="body2" color="text.secondary">Personal Expense Tracker v0.1.0</Typography>
+          <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>Built with Next.js and Firebase</Typography>
+        </Box>
       </div>
     </div>
   );

@@ -1,8 +1,26 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { 
+  Dialog, 
+  DialogTitle, 
+  DialogContent, 
+  DialogActions, 
+  Button, 
+  TextField, 
+  IconButton, 
+  Typography, 
+  Box, 
+  Alert,
+  ToggleButton, 
+  ToggleButtonGroup,
+  MenuItem,
+  Grid
+} from '@mui/material';
 import { FiX } from 'react-icons/fi';
 import { useCurrency } from '../context/CurrencyContext';
+import { collection, getDocs, query, orderBy } from "firebase/firestore";
+import { db } from '../firebase';
 
 interface AddExpenseModalProps {
   isOpen: boolean;
@@ -20,6 +38,8 @@ interface AddExpenseModalProps {
   }) => void;
 }
 
+const DEFAULT_CATEGORIES = ['Misc', 'Food', 'Medical', 'Travel'];
+
 const AddExpenseModal: React.FC<AddExpenseModalProps> = ({ isOpen, onClose, onAddExpense, initialType }) => {
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
@@ -30,25 +50,89 @@ const AddExpenseModal: React.FC<AddExpenseModalProps> = ({ isOpen, onClose, onAd
   const [category, setCategory] = useState('Misc');
   const [paymentMode, setPaymentMode] = useState('Online');
   const [attachments, setAttachments] = useState<FileList | null>(null);
+  const [availableCategories, setAvailableCategories] = useState<string[]>(DEFAULT_CATEGORIES);
+  const [isSaving, setIsSaving] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const { currency } = useCurrency();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  useEffect(() => {
+    if (isOpen) {
+      fetchCategories();
+    }
+  }, [isOpen]);
+
+  // Ensure the selected type matches the initialType when the modal opens
+  useEffect(() => {
+    if (isOpen) {
+      setType(initialType ?? 'out');
+    }
+  }, [isOpen, initialType]);
+
+  const fetchCategories = async () => {
+    try {
+      const q = query(collection(db, 'categories'), orderBy('name', 'asc'));
+      const querySnapshot = await getDocs(q);
+      const categoriesData = querySnapshot.docs.map(doc => doc.data().name as string);
+      
+      if (categoriesData.length > 0) {
+        setAvailableCategories(categoriesData);
+        // If current category is not in the new list, reset it
+        if (!categoriesData.includes(category)) {
+          setCategory(categoriesData[0]);
+        }
+      } else {
+        setAvailableCategories(DEFAULT_CATEGORIES);
+      }
+    } catch (err) {
+      console.error("Error fetching categories:", err);
+      setAvailableCategories(DEFAULT_CATEGORIES);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!description || !amount) return;
+    setErrorMessage(null);
+    if (!description || !amount) {
+      setErrorMessage('Please provide a description and amount.');
+      return;
+    }
 
     const createdAt = new Date(`${date}T${time}`);
 
-    onAddExpense({
-      description,
-      amount: parseFloat(amount),
-      type,
-      createdAt,
-      remarks: remarks || undefined,
-      category,
-      paymentMode,
-      attachments: attachments ? Array.from(attachments).map((f) => f.name) : [],
-    });
+    setIsSaving(true);
+    try {
+      const payload: any = {
+        description,
+        amount: parseFloat(amount),
+        type,
+        createdAt,
+        category,
+        paymentMode,
+      };
 
+      if (remarks && remarks.trim() !== '') {
+        payload.remarks = remarks.trim();
+      }
+
+      if (attachments && attachments.length > 0) {
+        payload.attachments = Array.from(attachments).map((f) => f.name);
+      }
+
+      console.debug('Prepared payload for save:', payload);
+
+      await onAddExpense(payload);
+
+      // close on success
+      handleClose();
+    } catch (err: any) {
+      console.error('Save failed:', err);
+      setErrorMessage(err?.message || 'Failed to save entry. Please try again.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleClose = () => {
     setDescription('');
     setAmount('');
     setType('out');
@@ -58,84 +142,189 @@ const AddExpenseModal: React.FC<AddExpenseModalProps> = ({ isOpen, onClose, onAd
     setCategory('Misc');
     setPaymentMode('Online');
     setAttachments(null);
+    setErrorMessage(null);
+    onClose();
   };
 
-
-  if (!isOpen) return null;
-
   return (
-    <div className="modal-overlay">
-      <div className="modal-card max-w-xl">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="section-title">Add Entry</h2>
-          <button onClick={onClose} className="icon-button" aria-label="Close expense modal">
-            <FiX />
-          </button>
-        </div>
-        <form onSubmit={handleSubmit}>
-          <div className="flex gap-3 mb-4">
-            <button type="button" onClick={() => setType('in')} className={`px-4 py-2 rounded-full border ${type === 'in' ? 'bg-green-50 text-green-700' : 'bg-white text-slate-700'}`}>
-              Cash In
-            </button>
-            <button type="button" onClick={() => setType('out')} className={`px-4 py-2 rounded-full border ${type === 'out' ? 'bg-red-600 text-white' : 'bg-white text-slate-700'}`}>
-              Cash Out
-            </button>
-          </div>
+    <Dialog 
+      open={isOpen} 
+      onClose={handleClose}
+      fullWidth
+      maxWidth="sm"
+      PaperProps={{
+        sx: { borderRadius: '28px' }
+      }}
+    >
+      <DialogTitle sx={{ m: 0, p: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Typography variant="h5" component="div" fontWeight="500">
+          Add Entry
+        </Typography>
+        <IconButton onClick={handleClose} size="large" sx={{ color: 'text.secondary' }}>
+          <FiX />
+        </IconButton>
+      </DialogTitle>
+      
+      <form onSubmit={handleSubmit}>
+        <DialogContent sx={{ p: 3, pt: 0 }}>
+          <Box sx={{ mb: 3 }}>
+            <ToggleButtonGroup
+              value={type}
+              exclusive
+              onChange={(_, newType) => newType && setType(newType)}
+              fullWidth
+              sx={{
+                '& .MuiToggleButton-root': {
+                  borderRadius: '100px',
+                  py: 1.5,
+                  px: 3,
+                  border: '1px solid',
+                  borderColor: 'divider',
+                  '&.Mui-selected': {
+                    backgroundColor: type === 'in' ? 'primary.container' : 'error.container',
+                    color: type === 'in' ? 'on-primary-container' : 'on-error-container',
+                    border: 'none',
+                    '&:hover': {
+                      backgroundColor: type === 'in' ? 'primary.container' : 'error.container',
+                      opacity: 0.9,
+                    }
+                  }
+                }
+              }}
+            >
+              <ToggleButton value="in" sx={{ mr: 1 }}>Cash In</ToggleButton>
+              <ToggleButton value="out" sx={{ ml: 1 }}>Cash Out</ToggleButton>
+            </ToggleButtonGroup>
+          </Box>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="field-label">Date *</label>
-              <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="text-field" />
-            </div>
-            <div>
-              <label className="field-label">Time</label>
-              <input type="time" value={time} onChange={(e) => setTime(e.target.value)} className="text-field" />
-            </div>
-          </div>
+          <TextField
+            id="entry-description"
+            label="Description"
+            fullWidth
+            required
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="e.g., Groceries, Rent, Salary"
+            sx={{ mb: 3 }}
+          />
 
-          <div className="mb-4 mt-4">
-            <label htmlFor="amount" className="field-label">Amount ({currency}) *</label>
-            <input type="number" id="amount" value={amount} onChange={(e) => setAmount(e.target.value)} className="text-field" placeholder={`0.00 ${currency}`} />
-          </div>
+          <Grid container spacing={2} sx={{ mb: 3 }}>
+            <Grid size={6}>
+              <TextField
+                id="entry-date"
+                label="Date"
+                type="date"
+                fullWidth
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+                InputLabelProps={{ shrink: true }}
+              />
+            </Grid>
+            <Grid size={6}>
+              <TextField
+                id="entry-time"
+                label="Time"
+                type="time"
+                fullWidth
+                value={time}
+                onChange={(e) => setTime(e.target.value)}
+                InputLabelProps={{ shrink: true }}
+              />
+            </Grid>
+          </Grid>
 
-          <div className="mb-4">
-            <label htmlFor="remarks" className="field-label">Remarks</label>
-            <textarea id="remarks" value={remarks} onChange={(e) => setRemarks(e.target.value)} className="text-field" placeholder="e.g. Enter Details (Name, Bill No, Item Name, Quantity etc)" />
-          </div>
+          {errorMessage && (
+            <Box sx={{ mb: 2 }}>
+              <Alert severity="error">{errorMessage}</Alert>
+            </Box>
+          )}
 
-          <div className="grid grid-cols-2 gap-4 mb-4">
-            <div>
-              <label className="field-label">Category *</label>
-              <select value={category} onChange={(e) => setCategory(e.target.value)} className="text-field">
-                <option>Misc</option>
-                <option>Food</option>
-                <option>Medical</option>
-                <option>Travel</option>
-              </select>
-            </div>
-            <div>
-              <label className="field-label">Payment Mode</label>
-              <select value={paymentMode} onChange={(e) => setPaymentMode(e.target.value)} className="text-field">
-                <option>Online</option>
-                <option>Cash</option>
-                <option>Card</option>
-              </select>
-            </div>
-          </div>
+          <TextField
+            id="entry-amount"
+            label={`Amount (${currency})`}
+            type="number"
+            fullWidth
+            required
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            placeholder={`0.00 ${currency}`}
+            sx={{ mb: 3 }}
+          />
 
-          <div className="mb-6">
-            <label className="field-label">Attach Bills</label>
-            <input type="file" multiple onChange={(e) => setAttachments(e.target.files)} className="mt-2" />
-            <p className="text-sm text-slate-500 mt-2">Attach up to 4 images or PDF files</p>
-          </div>
+          <TextField
+            id="entry-remarks"
+            label="Remarks"
+            fullWidth
+            multiline
+            rows={3}
+            value={remarks}
+            onChange={(e) => setRemarks(e.target.value)}
+            placeholder="e.g. Enter Details (Name, Bill No, Item Name, Quantity etc)"
+            sx={{ mb: 3 }}
+          />
 
-          <div className="flex justify-end gap-3">
-            <button type="button" onClick={onClose} className="btn-secondary">Cancel</button>
-            <button type="submit" className="btn-primary">Save</button>
-          </div>
-        </form>
-      </div>
-    </div>
+          <Grid container spacing={2} sx={{ mb: 3 }}>
+            <Grid size={6}>
+              <TextField
+                id="entry-category"
+                select
+                label="Category"
+                fullWidth
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+              >
+                {availableCategories.map((cat) => (
+                  <MenuItem key={cat} value={cat}>
+                    {cat}
+                  </MenuItem>
+                ))}
+              </TextField>
+            </Grid>
+            <Grid size={6}>
+              <TextField
+                id="entry-paymentMode"
+                select
+                label="Payment Mode"
+                fullWidth
+                value={paymentMode}
+                onChange={(e) => setPaymentMode(e.target.value)}
+              >
+                <MenuItem value="Online">Online</MenuItem>
+                <MenuItem value="Cash">Cash</MenuItem>
+                <MenuItem value="Card">Card</MenuItem>
+              </TextField>
+            </Grid>
+          </Grid>
+
+          <Box>
+            <label htmlFor="entry-attachments">
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 1, px: 1 }}>
+                Attach Bills
+              </Typography>
+            </label>
+            <input 
+              id="entry-attachments"
+              type="file" 
+              multiple 
+              onChange={(e) => setAttachments(e.target.files)} 
+              style={{ display: 'block', marginBottom: '8px', fontSize: '14px' }}
+            />
+            <Typography variant="caption" color="text.secondary">
+              Attach up to 4 images or PDF files
+            </Typography>
+          </Box>
+        </DialogContent>
+
+        <DialogActions sx={{ p: 3, pt: 0 }}>
+          <Button onClick={handleClose} color="inherit" disabled={isSaving}>
+            Cancel
+          </Button>
+          <Button type="submit" variant="contained" color="primary" disableElevation disabled={isSaving}>
+            {isSaving ? 'Saving...' : 'Save'}
+          </Button>
+        </DialogActions>
+      </form>
+    </Dialog>
   );
 };
 

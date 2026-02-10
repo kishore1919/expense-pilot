@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { FiArrowRight, FiPlus, FiSearch, FiTrash2 } from 'react-icons/fi';
 import { FaBook } from 'react-icons/fa';
+import { Button, TextField, InputAdornment, Box, Typography, Alert, IconButton } from '@mui/material';
 import { collection, getDocs, addDoc, deleteDoc, doc, query, orderBy } from "firebase/firestore";
 import { db } from '../firebase';
 import { useRouter } from 'next/navigation';
@@ -18,14 +19,19 @@ interface Book {
 
 const EmptyState = ({ onCreate }: { onCreate: () => void }) => (
   <div className="empty-state">
-    <div className="mb-5 flex h-20 w-20 items-center justify-center rounded-full bg-teal-100 text-teal-700">
+    <div className="mb-5 flex h-20 w-20 items-center justify-center rounded-full bg-primary-container text-on-primary-container">
       <FaBook className="text-3xl" />
     </div>
     <h2 className="section-title">No books yet</h2>
-    <p className="mt-2 max-w-sm text-slate-600">Create your first expense book to start tracking spending with structure.</p>
-    <button onClick={onCreate} className="btn-primary mt-7">
-      <FiPlus /> Create Your First Book
-    </button>
+    <p className="mt-2 max-w-sm text-on-surface-variant">Create your first expense book to start tracking spending with structure.</p>
+    <Button 
+      variant="contained" 
+      onClick={onCreate} 
+      startIcon={<FiPlus />}
+      sx={{ mt: 4, borderRadius: '100px' }}
+    >
+      Create Your First Book
+    </Button>
   </div>
 );
 
@@ -110,74 +116,97 @@ const BooksPage = () => {
       </header>
 
       {error && (
-        <div className="status-error">
-          {error}
-        </div>
+        <Alert severity="error" sx={{ borderRadius: '16px' }}>{error}</Alert>
       )}
 
       {books.length > 0 && (
-        <div className="surface-card flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="relative w-full sm:w-96">
-            <input
-              type="text"
-              placeholder="Search books..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="text-field pl-11"
-            />
-            <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-          </div>
-          <button onClick={() => setIsModalOpen(true)} className="btn-primary w-full whitespace-nowrap sm:w-auto">
-            <FiPlus /> Create New Book
-          </button>
-        </div>
+        <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: 2, alignItems: 'center', justifyContent: 'space-between' }}>
+          <TextField
+            placeholder="Search books..."
+            variant="outlined"
+            size="small"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            sx={{ 
+              maxWidth: { xs: '100%', sm: '384px' }, 
+              width: '100%',
+              '& .MuiOutlinedInput-root': { borderRadius: '100px' } 
+            }}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <FiSearch />
+                </InputAdornment>
+              ),
+            }}
+          />
+          <Button 
+            variant="contained" 
+            fullWidth={false}
+            onClick={() => setIsModalOpen(true)} 
+            startIcon={<FiPlus />}
+            sx={{ borderRadius: '100px', width: { xs: '100%', sm: 'auto' }, whiteSpace: 'nowrap' }}
+          >
+            Create New Book
+          </Button>
+        </Box>
       )}
 
       {filteredBooks.length > 0 ? (
         <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
           {filteredBooks.map((book) => (
-            <Card key={book.id} className="group relative p-5 transition hover:-translate-y-0.5 hover:bg-white/90">
+            <Card key={book.id} className="group relative p-5 transition hover:-translate-y-0.5 hover:bg-surface-container">
               <div
                 onClick={() => handleBookClick(book.id)}
                 className="cursor-pointer"
               >
                 <div className="mb-4 flex items-center">
-                  <div className="mr-4 flex h-12 w-12 items-center justify-center rounded-xl bg-teal-100 text-xl text-teal-700">
+                  <div className="mr-4 flex h-12 w-12 items-center justify-center rounded-[18px] bg-primary-container text-xl text-on-primary-container">
                     <FaBook />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <h3 className="truncate text-lg font-semibold text-slate-900">{book.name}</h3>
-                    <p className="text-sm text-slate-500">Created {book.createdAt}</p>
+                    <Typography variant="h6" fontWeight="600" noWrap>{book.name}</Typography>
+                    <Typography variant="body2" color="text.secondary">Created {book.createdAt}</Typography>
                   </div>
                 </div>
-                <div className="flex items-center justify-between text-sm font-medium text-slate-600">
+                <div className="flex items-center justify-between text-sm font-medium text-primary">
                   <span>Open details</span>
-                  <FiArrowRight className="transition group-hover:translate-x-1 group-hover:text-teal-700" />
+                  <FiArrowRight className="transition group-hover:translate-x-1 group-hover:text-primary" />
                 </div>
               </div>
 
               <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity flex gap-2">
-                <button
+                <IconButton
                   onClick={(e) => {
                     e.stopPropagation();
                     handleDeleteBook(book.id);
                   }}
-                  className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-red-200 bg-red-50 text-red-700 transition hover:bg-red-100 focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-red-300"
+                  size="small"
+                  sx={{ 
+                    backgroundColor: 'error.container', 
+                    color: 'on-error-container',
+                    '&:hover': { backgroundColor: 'error.container', filter: 'brightness(0.95)' },
+                    borderRadius: '8px'
+                  }}
                   title="Delete book"
                   aria-label={`Delete ${book.name}`}
                 >
-                  <FiTrash2 />
-                </button>
+                  <FiTrash2 size={18} />
+                </IconButton>
               </div>
             </Card>
           ))}
         </div>
       ) : books.length > 0 ? (
         <Card className="py-14 text-center">
-          <p className="text-lg text-slate-600">No books match your search.</p>
-          <button onClick={() => setSearchQuery('')} className="btn-secondary mt-4">
+          <Typography variant="body1" color="text.secondary" sx={{ mb: 2 }}>No books match your search.</Typography>
+          <Button 
+            variant="outlined" 
+            onClick={() => setSearchQuery('')}
+            sx={{ borderRadius: '100px' }}
+          >
             Clear search
-          </button>
+          </Button>
         </Card>
       ) : (
         <EmptyState onCreate={() => setIsModalOpen(true)} />

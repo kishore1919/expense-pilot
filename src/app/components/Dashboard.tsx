@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { FiArrowRight, FiBookOpen, FiClock, FiPlus, FiSearch } from 'react-icons/fi';
 import { FaBook } from 'react-icons/fa';
+import { Button, TextField, InputAdornment, Box, Typography, Alert } from '@mui/material';
 import Card from './Card';
 import AddBookModal from './AddBookModal';
 import Loading from './Loading';
@@ -22,16 +23,21 @@ interface Book {
 
 const EmptyState = ({ setIsModalOpen }: { setIsModalOpen: (isOpen: boolean) => void }) => (
   <div className="empty-state">
-    <div className="mb-5 flex h-20 w-20 items-center justify-center rounded-full bg-teal-100 text-teal-700">
+    <div className="mb-5 flex h-20 w-20 items-center justify-center rounded-full bg-primary-container text-on-primary-container">
       <FaBook className="text-3xl" />
     </div>
     <h2 className="section-title">No expense books yet</h2>
-    <p className="mt-2 max-w-sm text-slate-600">
+    <p className="mt-2 max-w-sm text-on-surface-variant">
       Create your first book to organize expenses by goal, trip, or monthly budget.
     </p>
-    <button onClick={() => setIsModalOpen(true)} className="btn-primary mt-7">
-      <FiPlus className="text-base" /> Create Your First Book
-    </button>
+    <Button 
+      variant="contained" 
+      onClick={() => setIsModalOpen(true)} 
+      startIcon={<FiPlus />}
+      sx={{ mt: 4, borderRadius: '100px' }}
+    >
+      Create Your First Book
+    </Button>
   </div>
 );
 
@@ -125,25 +131,30 @@ const Dashboard = () => {
             <h1 className="page-title">Dashboard</h1>
             <p className="page-subtitle">Your books, activity, and quick actions in one place.</p>
           </div>
-          <button onClick={() => setIsModalOpen(true)} className="btn-primary w-full sm:w-auto">
-            <FiPlus className="text-base" /> New Expense Book
-          </button>
+          <Button 
+            variant="contained" 
+            onClick={() => setIsModalOpen(true)} 
+            startIcon={<FiPlus />}
+            sx={{ borderRadius: '100px' }}
+          >
+            New Expense Book
+          </Button>
         </div>
       </header>
 
       {error && (
-        <div className="status-error">
+        <Alert severity="error" sx={{ borderRadius: '16px' }}>
           {error}
-        </div>
+        </Alert>
       )}
 
       <section className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <Card>
-          <p className="text-sm text-slate-500">Total Books</p>
+          <p className="text-sm font-medium text-on-surface-variant">Total Books</p>
           <p className="metric-value mt-2">{books.length}</p>
         </Card>
         <Card>
-          <p className="text-sm text-slate-500">Books This Month</p>
+          <p className="text-sm font-medium text-on-surface-variant">Books This Month</p>
           <p className="metric-value mt-2">
             {(() => {
               const now = new Date();
@@ -156,9 +167,9 @@ const Dashboard = () => {
           </p>
         </Card>
         <Card>
-          <p className="text-sm text-slate-500">Latest Update</p>
-          <p className="mt-2 flex items-center gap-2 text-sm font-semibold text-slate-700">
-            <FiClock className="text-teal-700" />
+          <p className="text-sm font-medium text-on-surface-variant">Latest Update</p>
+          <p className="mt-2 flex items-center gap-2 text-sm font-semibold text-on-surface">
+            <FiClock className="text-primary" />
             {books[0]?.createdAt ?? 'No activity yet'}
           </p>
         </Card>
@@ -169,16 +180,25 @@ const Dashboard = () => {
           <div className="mb-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <h2 className="section-title">Your Expense Books</h2>
             {books.length > 0 && (
-              <div className="relative w-full sm:max-w-sm">
-                <input
-                  type="text"
-                  placeholder="Search books..."
-                  value={searchQuery}
-                  onChange={(event) => setSearchQuery(event.target.value)}
-                  className="text-field pl-11"
-                />
-                <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-              </div>
+              <TextField
+                placeholder="Search books..."
+                variant="outlined"
+                size="small"
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.target.value)}
+                sx={{ 
+                  maxWidth: '320px', 
+                  width: '100%',
+                  '& .MuiOutlinedInput-root': { borderRadius: '100px' } 
+                }}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <FiSearch />
+                    </InputAdornment>
+                  ),
+                }}
+              />
             )}
           </div>
 
@@ -189,30 +209,34 @@ const Dashboard = () => {
                   <button
                     key={book.id}
                     onClick={() => handleBookClick(book.id)}
-                    className="surface-card group flex w-full items-center justify-between p-4 text-left transition hover:-translate-y-0.5 hover:bg-white/95"
+                    className="surface-card group flex w-full items-center justify-between p-4 text-left hover:bg-surface-container"
                   >
                     <div className="flex items-center gap-4">
-                      <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-teal-100 text-xl text-teal-700">
+                      <div className="flex h-12 w-12 items-center justify-center rounded-[18px] bg-primary-container text-xl text-on-primary-container">
                         <FaBook />
                       </div>
                       <div>
-                        <p className="font-semibold text-slate-900">{book.name}</p>
-                        <p className="text-sm text-slate-500">Created {book.createdAt}</p>
+                        <p className="font-semibold text-on-surface">{book.name}</p>
+                        <p className="text-sm text-on-surface-variant">Created {book.createdAt}</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-6">
-                      <div className={`font-semibold ${book.net && book.net >= 0 ? 'text-green-700' : 'text-red-700'}`}>{book.net !== undefined ? formatCurrency(book.net) : ''}</div>
-                      <FiArrowRight className="text-slate-400 transition group-hover:translate-x-1 group-hover:text-teal-700" />
+                      <div className={`font-semibold ${book.net && book.net >= 0 ? 'text-primary' : 'text-red-700'}`}>{book.net !== undefined ? formatCurrency(book.net) : ''}</div>
+                      <FiArrowRight className="text-on-surface-variant transition group-hover:translate-x-1 group-hover:text-primary" />
                     </div>
                   </button>
                 ))}
               </div>
             ) : (
               <Card className="text-center">
-                <p className="text-slate-600">No books match your search.</p>
-                <button onClick={() => setSearchQuery('')} className="btn-secondary mt-4">
+                <p className="text-on-surface-variant">No books match your search.</p>
+                <Button 
+                  onClick={() => setSearchQuery('')} 
+                  variant="outlined"
+                  sx={{ mt: 2, borderRadius: '100px' }}
+                >
                   Clear search
-                </button>
+                </Button>
               </Card>
             )
           ) : (
@@ -224,35 +248,42 @@ const Dashboard = () => {
           <Card>
             <h3 className="section-title mb-4">Quick Actions</h3>
             <div className="space-y-3">
-              <button
-                className="btn-secondary w-full justify-start opacity-60 cursor-not-allowed"
+              <Button
+                fullWidth
+                variant="outlined"
                 disabled
-                aria-disabled="true"
-                title="Coming soon"
+                startIcon={<FiPlus />}
+                sx={{ justifyContent: 'flex-start', borderRadius: '16px' }}
               >
-                <FiPlus /> Add New Transaction
-              </button>
-              <button onClick={() => setIsModalOpen(true)} className="btn-secondary w-full justify-start">
-                <FiBookOpen /> Create New Expense Book
-              </button>
+                Add New Transaction
+              </Button>
+              <Button 
+                fullWidth
+                variant="outlined"
+                onClick={() => setIsModalOpen(true)} 
+                startIcon={<FiBookOpen />}
+                sx={{ justifyContent: 'flex-start', borderRadius: '16px' }}
+              >
+                Create New Expense Book
+              </Button>
             </div>
           </Card>
           <Card>
-            <h3 className="section-title mb-1">Recent Activity <span className="ml-2 inline-block rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">Example</span></h3>
-            <div className="text-xs text-slate-400 mb-3">This section shows example entries. Replace with real activity data when available.</div>
+            <h3 className="section-title mb-1">Recent Activity <span className="ml-2 inline-block rounded-full bg-surface-container-highest px-2 py-0.5 text-xs font-medium text-on-surface-variant">Example</span></h3>
+            <div className="text-xs text-on-surface-variant/70 mb-3">This section shows example entries. Replace with real activity data when available.</div>
             <div className="space-y-4 text-sm">
               <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100 font-semibold text-emerald-700">T</div>
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-tertiary-container font-semibold text-on-tertiary-container">T</div>
                 <div>
-                  <p className="font-semibold text-slate-800">Added groceries expense</p>
-                  <p className="text-slate-500">2 hours ago</p>
+                  <p className="font-semibold text-on-surface">Added groceries expense</p>
+                  <p className="text-on-surface-variant">2 hours ago</p>
                 </div>
               </div>
               <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-100 font-semibold text-amber-700">B</div>
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-secondary-container font-semibold text-on-secondary-container">B</div>
                 <div>
-                  <p className="font-semibold text-slate-800">Created a new expense book</p>
-                  <p className="text-slate-500">Yesterday</p>
+                  <p className="font-semibold text-on-surface">Created a new expense book</p>
+                  <p className="text-on-surface-variant">Yesterday</p>
                 </div>
               </div>
             </div>

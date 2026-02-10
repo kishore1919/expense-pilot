@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { FiPlus, FiChevronLeft, FiTrash2 } from 'react-icons/fi';
+import { Button, IconButton, Typography, Box, Alert, Grid } from '@mui/material';
 import { useParams, useRouter } from 'next/navigation';
 import { doc, getDoc, collection, getDocs, addDoc, deleteDoc } from "firebase/firestore";
 import { db } from '../../../app/firebase';
@@ -90,12 +91,19 @@ const BookDetailPage = () => {
     if (!bookId || typeof bookId !== 'string' || Array.isArray(bookId)) return;
 
     try {
+      // Debug: log payload being stored so we can verify type/amount
+      console.debug('Adding expense to Firestore:', expense);
       // Store createdAt as Date object - Firestore will convert it to a timestamp
       const docRef = await addDoc(collection(db, `books/${bookId}/expenses`), expense);
+      console.debug('Added expense id:', docRef.id);
       setExpenses([...expenses, { id: docRef.id, ...expense }]);
       setIsModalOpen(false);
+      // Return the new id so callers can await the result
+      return docRef.id;
     } catch (e) {
       console.error("Error adding document: ", e);
+      // Re-throw so caller (modal) can surface the error
+      throw e;
     }
   };
 
@@ -116,15 +124,6 @@ const BookDetailPage = () => {
   const totalExpense = cashOut;
   const netBalance = cashIn - cashOut;
 
-  // Compute running balances per entry (ascending by date)
-  const expensesAsc = [...expenses].sort((a, b) => (a.createdAt?.getTime() ?? 0) - (b.createdAt?.getTime() ?? 0));
-  const runningBalances: Record<string, number> = {};
-  let acc = 0;
-  for (const e of expensesAsc) {
-    acc += e.type === 'in' ? e.amount : -e.amount;
-    runningBalances[e.id] = acc;
-  }
-
   if (loading) {
     return <Loading />;
   }
@@ -133,9 +132,9 @@ const BookDetailPage = () => {
     <div className="space-y-6">
       <header className="surface-card flex flex-col gap-4 p-6 md:flex-row md:items-center md:justify-between md:p-8">
         <div className="flex items-center gap-4">
-          <button onClick={() => router.back()} className="icon-button" aria-label="Back">
+          <IconButton onClick={() => router.back()} size="large" sx={{ color: 'text.secondary' }}>
             <FiChevronLeft />
-          </button>
+          </IconButton>
           <div>
             <h1 className="page-title">{bookName}</h1>
             <p className="page-subtitle">
@@ -143,65 +142,104 @@ const BookDetailPage = () => {
             </p>
           </div>
         </div>
-        <div className="flex gap-3 w-full md:w-auto">
-          <button onClick={() => { setModalInitialType('in'); setIsModalOpen(true); }} className="btn-success w-full md:w-auto">
+        <Box sx={{ display: 'flex', gap: 2, width: { xs: '100%', md: 'auto' } }}>
+          <Button 
+            variant="contained" 
+            fullWidth
+            onClick={() => { setModalInitialType('in'); setIsModalOpen(true); }}
+            sx={{ 
+              backgroundColor: 'primary.container', 
+              color: 'on-primary-container',
+              '&:hover': { backgroundColor: 'primary.container', opacity: 0.9 },
+              borderRadius: '100px',
+              boxShadow: 'none'
+            }}
+          >
             + Cash In
-          </button>
-          <button onClick={() => { setModalInitialType('out'); setIsModalOpen(true); }} className="btn-danger w-full md:w-auto">
+          </Button>
+          <Button 
+            variant="contained" 
+            fullWidth
+            onClick={() => { setModalInitialType('out'); setIsModalOpen(true); }}
+            sx={{ 
+              backgroundColor: 'error.container', 
+              color: 'on-error-container',
+              '&:hover': { backgroundColor: 'error.container', opacity: 0.9 },
+              borderRadius: '100px',
+              boxShadow: 'none'
+            }}
+          >
             - Cash Out
-          </button>
-        </div>
+          </Button>
+        </Box>
       </header>
 
       {error && (
-        <div className="status-error">{error}</div>
+        <Alert severity="error" sx={{ borderRadius: '16px' }}>{error}</Alert>
       )}
 
-      <section className="grid grid-cols-1 gap-4 md:grid-cols-3">
-        <Card>
-          <p className="text-sm text-slate-500">Cash In</p>
-          <p className="metric-value mt-2 text-green-700">{formatCurrency(cashIn)}</p>
-        </Card>
-        <Card>
-          <p className="text-sm text-slate-500">Cash Out</p>
-          <p className="metric-value mt-2 text-red-700">{formatCurrency(cashOut)}</p>
-        </Card>
-        <Card>
-          <p className="text-sm text-slate-500">Net Balance</p>
-          <p className={`metric-value mt-2 ${netBalance >= 0 ? 'text-green-700' : 'text-red-700'}`}>{formatCurrency(netBalance)}</p>
-        </Card>
-      </section>
+      <Grid container spacing={2}>
+        <Grid size={{ xs: 12, md: 4 }}>
+          <Card>
+            <Typography variant="body2" fontWeight="500" color="text.secondary">Cash In</Typography>
+            <Typography variant="h4" sx={{ mt: 1, color: 'primary.main', fontWeight: '500' }}>{formatCurrency(cashIn)}</Typography>
+          </Card>
+        </Grid>
+        <Grid size={{ xs: 12, md: 4 }}>
+          <Card>
+            <Typography variant="body2" fontWeight="500" color="text.secondary">Cash Out</Typography>
+            <Typography variant="h4" sx={{ mt: 1, color: 'error.main', fontWeight: '500' }}>{formatCurrency(cashOut)}</Typography>
+          </Card>
+        </Grid>
+        <Grid size={{ xs: 12, md: 4 }}>
+          <Card>
+            <Typography variant="body2" fontWeight="500" color="text.secondary">Net Balance</Typography>
+            <Typography variant="h4" sx={{ mt: 1, fontWeight: '500', color: netBalance >= 0 ? 'primary.main' : 'error.main' }}>
+              {formatCurrency(netBalance)}
+            </Typography>
+          </Card>
+        </Grid>
+      </Grid>
 
       <div className="surface-card overflow-hidden">
-        <div className="border-b border-slate-200/70 px-6 py-4">
+        <div className="border-b border-outline-variant px-6 py-4">
           <h2 className="section-title">Expenses</h2>
         </div>
         <div className="p-4 md:p-6">
           {expenses.length > 0 ? (
             <div className="space-y-3">
               {expenses.map((expense) => (
-                <div key={expense.id} className="flex items-center justify-between rounded-xl border border-slate-200 bg-white/75 px-4 py-3">
+                <div key={expense.id} className="flex items-center justify-between rounded-[16px] border border-outline-variant bg-surface-container-low px-4 py-3 transition hover:bg-surface-container">
                   <div className="flex items-center gap-4">
-                    <span className="font-medium text-slate-800">{expense.description}</span>
+                    <Typography variant="body1" fontWeight="500">{expense.description}</Typography>
                   </div>
 
                   <div className="flex items-center gap-3">
-                    <span className={`text-lg font-semibold ${expense.type === 'out' ? 'text-red-700' : 'text-green-700'}`}>
-                      {expense.type === 'out' ? formatCurrency(-expense.amount) : formatCurrency(expense.amount)}
-                    </span>
-                    <button
-                      onClick={() => handleDeleteExpense(expense.id)}
-                      className="icon-button text-red-600 hover:text-red-800"
-                      aria-label={`Delete expense ${expense.description}`}
+                    <Typography 
+                      variant="h6" 
+                      fontWeight="600" 
+                      sx={{ color: expense.type === 'out' ? 'error.main' : 'primary.main' }}
                     >
-                      <FiTrash2 />
-                    </button>
+                      {expense.type === 'out' ? formatCurrency(-expense.amount) : formatCurrency(expense.amount)}
+                    </Typography>
+                    <IconButton
+                      onClick={() => handleDeleteExpense(expense.id)}
+                      size="small"
+                      sx={{ 
+                        color: 'text.secondary',
+                        '&:hover': { backgroundColor: 'error.container', color: 'error.main' }
+                      }}
+                    >
+                      <FiTrash2 size={18} />
+                    </IconButton>
                   </div>
                 </div>
               ))}
             </div>
           ) : (
-            <div className="py-10 text-center text-slate-600">No expenses yet. Add your first one.</div>
+            <Box sx={{ py: 10, textAlign: 'center' }}>
+              <Typography color="text.secondary">No expenses yet. Add your first one.</Typography>
+            </Box>
           )}
         </div>
       </div>

@@ -1,11 +1,14 @@
 'use client';
 
+'use client';
+
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '../firebase';
 import Link from 'next/link';
 import { FaBook } from 'react-icons/fa';
+import { Button, TextField, Typography, Box, Alert } from '@mui/material';
 
 export default function SignUp() {
   const [email, setEmail] = useState('');
@@ -27,65 +30,58 @@ export default function SignUp() {
   };
 
   return (
-    <div className="surface-strong w-full p-8 md:p-10">
-      <div className="mb-8 text-center">
-        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-teal-100 text-teal-700">
-          <FaBook className="text-2xl" />
-        </div>
-        <h2 className="page-title !text-3xl">Create Account</h2>
-        <p className="page-subtitle">Sign up to start tracking expenses.</p>
-      </div>
+    <Box sx={{ p: { xs: 4, md: 5 }, bgcolor: 'surface.container', borderRadius: '28px', boxShadow: 3 }}>
+      <Box sx={{ mb: 4, textAlign: 'center' }}>
+        <Box sx={{ mx: 'auto', mb: 2, display: 'flex', h: 64, w: 64, alignItems: 'center', justifyCenter: 'center', borderRadius: '16px', bgcolor: 'primary.container', color: 'on-primary-container' }}>
+          <FaBook size={32} />
+        </Box>
+        <Typography variant="h4" fontWeight="500" sx={{ mb: 1 }}>Create Account</Typography>
+        <Typography variant="body1" color="text.secondary">Sign up to start tracking expenses.</Typography>
+      </Box>
 
-      <form className="space-y-6" onSubmit={handleSignUp}>
-        <div className="space-y-4">
-          <div>
-            <input
-              id="email-address"
-              name="email"
-              type="email"
-              autoComplete="email"
-              required
-              className="text-field"
-              placeholder="Email address"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
-          </div>
-          <div>
-            <input
-              id="password"
-              name="password"
-              type="password"
-              autoComplete="new-password"
-              required
-              className="text-field"
-              placeholder="Password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
-          </div>
-        </div>
+      <form onSubmit={handleSignUp}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+          <TextField
+            label="Email Address"
+            type="email"
+            fullWidth
+            required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            sx={{ '& .MuiOutlinedInput-root': { borderRadius: '12px' } }}
+          />
+          <TextField
+            label="Password"
+            type="password"
+            fullWidth
+            required
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            sx={{ '& .MuiOutlinedInput-root': { borderRadius: '12px' } }}
+          />
 
-        {error && <p className="status-error text-center">{error}</p>}
+          {error && <Alert severity="error" sx={{ borderRadius: '12px' }}>{error}</Alert>}
 
-        <div>
-          <button
-            type="submit"
-            className="btn-primary w-full"
+          <Button 
+            type="submit" 
+            variant="contained" 
+            fullWidth 
+            size="large"
+            sx={{ mt: 2, py: 1.5, borderRadius: '100px' }}
           >
             Sign up
-          </button>
-        </div>
+          </Button>
+        </Box>
       </form>
 
-      <div className="mt-8 text-center text-slate-600">
-        <p>
+      <Box sx={{ mt: 4, textAlign: 'center' }}>
+        <Typography variant="body2" color="text.secondary">
           Already have an account?{' '}
-          <Link href="/login" className="font-semibold text-teal-700 hover:text-teal-800 hover:underline">
+          <Link href="/login" style={{ fontWeight: 600, color: 'var(--md-sys-color-primary)', textDecoration: 'none' }}>
             Log in
           </Link>
-        </p>
-      </div>
-    </div>
+        </Typography>
+      </Box>
+    </Box>
   );
 }

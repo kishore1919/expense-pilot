@@ -635,7 +635,7 @@ export default function BookDetailPage() {
                 </TableCell>
                 <TableCell onClick={() => handleSort('createdAt')} sx={{ cursor: 'pointer' }}>
                   <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', fontWeight: 600 }}>
-                    Date & Time {sortBy === 'createdAt' && (sortDir === 'asc' ? <FiChevronDown style={{ transform: 'rotate(180deg)' }} /> : <FiChevronDown />)}
+                    Date {sortBy === 'createdAt' && (sortDir === 'asc' ? <FiChevronDown style={{ transform: 'rotate(180deg)' }} /> : <FiChevronDown />)}
                   </Box>
                 </TableCell>
                 <TableCell sx={{ fontWeight: 600 }}>Details</TableCell>
@@ -685,7 +685,6 @@ export default function BookDetailPage() {
                       </TableCell>
                       <TableCell>
                         <Typography variant="body2" fontWeight={500}>{date}</Typography>
-                        <Typography variant="caption" color="text.secondary">{time}</Typography>
                       </TableCell>
                       <TableCell><Typography variant="body2">{row.description}</Typography></TableCell>
                       <TableCell><Typography variant="body2">{row.category}</Typography></TableCell>

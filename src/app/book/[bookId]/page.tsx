@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { FiPlus, FiChevronLeft, FiTrash2 } from 'react-icons/fi';
-import { Button, IconButton, Typography, Box, Alert, Grid } from '@mui/material';
+import { Button, IconButton, Typography, Box, Alert, Grid, Checkbox, Toolbar } from '@mui/material';
 import { useParams, useRouter } from 'next/navigation';
 import { doc, getDoc, collection, getDocs, addDoc, deleteDoc } from "firebase/firestore";
 import { db } from '../../../app/firebase';
@@ -32,6 +32,8 @@ const BookDetailPage = () => {
   const [modalInitialType, setModalInitialType] = useState<'in' | 'out' | undefined>(undefined);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
   const { formatCurrency } = useCurrency();
 
   useEffect(() => {
@@ -114,6 +116,7 @@ const BookDetailPage = () => {
     try {
       await deleteDoc(doc(db, `books/${bookId}/expenses`, expenseId));
       setExpenses((prev) => prev.filter((e) => e.id !== expenseId));
+      setSelectedIds((prev) => prev.filter((id) => id !== expenseId));
     } catch (e) {
       console.error('Error deleting expense:', e);
     }
@@ -206,6 +209,49 @@ const BookDetailPage = () => {
           <h2 className="section-title">Expenses</h2>
         </div>
         <div className="p-4 md:p-6">
+          <Toolbar sx={{ px: 0, mb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Checkbox
+                size="small"
+                checked={expenses.length > 0 && selectedIds.length === expenses.length}
+                indeterminate={selectedIds.length > 0 && selectedIds.length < expenses.length}
+                onChange={(e) => {
+                  if (e.target.checked) setSelectedIds(expenses.map((ex) => ex.id));
+                  else setSelectedIds([]);
+                }}
+              />
+              <Typography variant="body2" color="text.secondary">Select</Typography>
+            </Box>
+
+            <Box sx={{ display: 'flex', gap: 1 }}>
+              <Button disabled={selectedIds.length === 0 || isBulkDeleting} color="error" variant="contained" onClick={async () => {
+                if (selectedIds.length === 0) return;
+                if (!window.confirm(`Delete ${selectedIds.length} selected entries?`)) return;
+                setIsBulkDeleting(true);
+                try {
+                  await Promise.all(selectedIds.map((id) => deleteDoc(doc(db, `books/${bookId}/expenses`, id))));
+                  setExpenses((prev) => prev.filter((p) => !selectedIds.includes(p.id)));
+                  setSelectedIds([]);
+                } catch (err) {
+                  console.error('Bulk delete failed', err);
+                } finally { setIsBulkDeleting(false); }
+              }}>Delete Selected</Button>
+
+              <Button disabled={expenses.length === 0 || isBulkDeleting} color="error" variant="outlined" onClick={async () => {
+                if (!window.confirm('Delete ALL expenses for this book?')) return;
+                setIsBulkDeleting(true);
+                try {
+                  const docs = await getDocs(collection(db, `books/${bookId}/expenses`));
+                  await Promise.all(docs.docs.map((d) => deleteDoc(doc(db, `books/${bookId}/expenses`, d.id))));
+                  setExpenses([]);
+                  setSelectedIds([]);
+                } catch (err) {
+                  console.error('Delete all failed', err);
+                } finally { setIsBulkDeleting(false); }
+              }}>Delete All</Button>
+            </Box>
+          </Toolbar>
+
           {expenses.length > 0 ? (
             <div className="space-y-3">
               {expenses.map((expense) => (

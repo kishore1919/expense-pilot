@@ -127,10 +127,10 @@ const Dashboard = () => {
     <div className="space-y-8">
       <header className="surface-card p-6 md:p-8">
         <div className="flex flex-col justify-between gap-5 md:flex-row md:items-center">
-          <div>
+          {/* <div>
             <h1 className="page-title">Dashboard</h1>
             <p className="page-subtitle">Your books, activity, and quick actions in one place.</p>
-          </div>
+          </div> */}
           <Button 
             variant="contained" 
             onClick={() => setIsModalOpen(true)} 
@@ -245,7 +245,7 @@ const Dashboard = () => {
         </section>
 
         <aside className="space-y-6">
-          <Card>
+          {/* <Card>
             <h3 className="section-title mb-4">Quick Actions</h3>
             <div className="space-y-3">
               <Button
@@ -267,8 +267,8 @@ const Dashboard = () => {
                 Create New Expense Book
               </Button>
             </div>
-          </Card>
-          <Card>
+          </Card> */}
+          {/* <Card>
             <h3 className="section-title mb-1">Recent Activity <span className="ml-2 inline-block rounded-full bg-surface-container-highest px-2 py-0.5 text-xs font-medium text-on-surface-variant">Example</span></h3>
             <div className="text-xs text-on-surface-variant/70 mb-3">This section shows example entries. Replace with real activity data when available.</div>
             <div className="space-y-4 text-sm">
@@ -287,7 +287,7 @@ const Dashboard = () => {
                 </div>
               </div>
             </div>
-          </Card>
+          </Card> */}
         </aside>
       </div>
 

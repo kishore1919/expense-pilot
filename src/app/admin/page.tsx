@@ -90,53 +90,7 @@ const AdminPage = () => {
 
       <Paper sx={{ p: 4, borderRadius: '28px', bgcolor: 'surface.container' }}>
         <Typography variant="h6" sx={{ mb: 3, fontWeight: 500 }}>Expense Categories</Typography>
-        
-        <form onSubmit={handleAddCategory} style={{ display: 'flex', gap: '16px', marginBottom: '24px' }}>
-          <TextField
-            fullWidth
-            size="small"
-            label="New Category Name"
-            value={newCategory}
-            onChange={(e) => setNewCategory(e.target.value)}
-            sx={{ '& .MuiOutlinedInput-root': { borderRadius: '12px' } }}
-          />
-          <Button 
-            type="submit" 
-            variant="contained" 
-            startIcon={<FiPlus />}
-            sx={{ borderRadius: '12px', px: 3 }}
-          >
-            Add
-          </Button>
-        </form>
-
-        {loading ? (
-          <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-            <CircularProgress size={32} />
-          </Box>
-        ) : (
-          <List sx={{ bgcolor: 'background.paper', borderRadius: '16px', overflow: 'hidden' }}>
-            {categories.length === 0 ? (
-              <ListItem>
-                <ListItemText secondary="No categories found. Add one above." />
-              </ListItem>
-            ) : (
-              categories.map((category) => (
-                <ListItem
-                  key={category.id}
-                  secondaryAction={
-                    <IconButton edge="end" aria-label="delete" onClick={() => handleDeleteCategory(category.id)}>
-                      <FiTrash2 />
-                    </IconButton>
-                  }
-                  sx={{ borderBottom: '1px solid', borderColor: 'divider' }}
-                >
-                  <ListItemText primary={category.name} />
-                </ListItem>
-              ))
-            )}
-          </List>
-        )}
+        <Typography variant="body2" color="text.secondary">Category management has moved to <strong>Settings</strong>. You can add and delete categories from there.</Typography>
       </Paper>
     </Box>
   );

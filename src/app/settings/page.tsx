@@ -1,11 +1,93 @@
 'use client';
 
 import React, { useState } from 'react';
-import { FiUser, FiMail, FiMoon, FiBell, FiShield, FiGlobe } from 'react-icons/fi';
-import { Typography, Box, Switch, Select, MenuItem, FormControl, InputLabel, Divider, Chip } from '@mui/material';
+import { FiUser, FiMail, FiMoon, FiBell, FiShield, FiGlobe, FiTrash2 } from 'react-icons/fi';
+import { Typography, Box, Switch, Select, MenuItem, FormControl, InputLabel, Divider, Chip, TextField, Button, Paper, List, ListItem, ListItemText, IconButton, CircularProgress, Alert } from '@mui/material';
+import { collection, getDocs, addDoc, deleteDoc, doc, query, orderBy } from 'firebase/firestore';
+import { db } from '../firebase';
 import Card from '../components/Card';
 import { useCurrency } from '../context/CurrencyContext';
 import { useTheme } from '../context/ThemeContext';
+
+const CategoryManager: React.FC = () => {
+  const [categories, setCategories] = React.useState<Array<{ id: string; name: string }>>([]);
+  const [newCategory, setNewCategory] = React.useState('');
+  const [loadingCats, setLoadingCats] = React.useState(true);
+  const [error, setError] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        setLoadingCats(true);
+        const q = query(collection(db, 'categories'), orderBy('name', 'asc'));
+        const querySnapshot = await getDocs(q);
+        const cats = querySnapshot.docs.map(d => ({ id: d.id, name: d.data().name }));
+        setCategories(cats);
+        setError(null);
+      } catch (err) {
+        console.error('Error fetching categories:', err);
+        setError('Failed to load categories.');
+      } finally {
+        setLoadingCats(false);
+      }
+    };
+
+    fetchCategories();
+  }, []);
+
+  const handleAddCategory = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!newCategory.trim()) return;
+
+    try {
+      const docRef = await addDoc(collection(db, 'categories'), { name: newCategory.trim() });
+      setCategories((prev) => [...prev, { id: docRef.id, name: newCategory.trim() }].sort((a,b)=>a.name.localeCompare(b.name)));
+      setNewCategory('');
+    } catch (err) {
+      console.error('Error adding category:', err);
+      setError('Failed to add category.');
+    }
+  };
+
+  const handleDeleteCategory = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this category?')) return;
+    try {
+      await deleteDoc(doc(db, 'categories', id));
+      setCategories((prev) => prev.filter(c => c.id !== id));
+    } catch (err) {
+      console.error('Error deleting category:', err);
+      setError('Failed to delete category.');
+    }
+  };
+
+  return (
+    <div>
+      {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+      <form onSubmit={handleAddCategory} style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
+        <TextField value={newCategory} onChange={(e) => setNewCategory(e.target.value)} size="small" label="New category name" sx={{ flex: 1 }} />
+        <Button type="submit" variant="contained">Add</Button>
+      </form>
+
+      {loadingCats ? (
+        <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}><CircularProgress size={24} /></Box>
+      ) : (
+        <Paper sx={{ borderRadius: 2, overflow: 'hidden' }}>
+          {categories.length === 0 ? (
+            <ListItem><ListItemText secondary="No categories yet." /></ListItem>
+          ) : (
+            <List>
+              {categories.map((c) => (
+                <ListItem key={c.id} secondaryAction={<IconButton edge="end" onClick={() => handleDeleteCategory(c.id)}><FiTrash2 /></IconButton>}>
+                  <ListItemText primary={c.name} />
+                </ListItem>
+              ))}
+            </List>
+          )}
+        </Paper>
+      )}
+    </div>
+  );
+};
 
 const SettingsPage = () => {
   const [notifications, setNotifications] = useState(true);
@@ -134,6 +216,14 @@ const SettingsPage = () => {
           <Typography variant="body2" color="text.secondary">Personal Expense Tracker v0.1.0</Typography>
           <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>Built with Next.js and Firebase</Typography>
         </Box>
+
+        <Card className="p-7">
+          <Typography variant="h5" sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 2, fontWeight: 500 }}>
+            Categories
+          </Typography>
+
+          <CategoryManager />
+        </Card>
       </div>
     </div>
   );

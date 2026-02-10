@@ -296,7 +296,7 @@ const AddExpenseModal: React.FC<AddExpenseModalProps> = ({ isOpen, onClose, onAd
             </Grid>
           </Grid>
 
-          <Box>
+          {/* <Box>
             <label htmlFor="entry-attachments">
               <Typography variant="body2" color="text.secondary" sx={{ mb: 1, px: 1 }}>
                 Attach Bills
@@ -312,7 +312,7 @@ const AddExpenseModal: React.FC<AddExpenseModalProps> = ({ isOpen, onClose, onAd
             <Typography variant="caption" color="text.secondary">
               Attach up to 4 images or PDF files
             </Typography>
-          </Box>
+          </Box> */}
         </DialogContent>
 
         <DialogActions sx={{ p: 3, pt: 0 }}>

@@ -11,10 +11,9 @@ const Sidebar = () => {
 
   const menuItems = [
     { icon: FiGrid, name: 'Dashboard', path: '/' },
-    { icon: FiBarChart2, name: 'Analytics', path: '/analytics' },
+    // { icon: FiBarChart2, name: 'Analytics', path: '/analytics' },
     { icon: FiBookOpen, name: 'My Books', path: '/books' },
     { icon: FiSettings, name: 'Settings', path: '/settings' },
-    { icon: FiShield, name: 'Admin', path: '/admin' },
   ];
 
   return (

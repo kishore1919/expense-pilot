@@ -12,13 +12,17 @@ import {
   Card,
   CardContent,
   Checkbox,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
   Paper,
   Skeleton,
   Chip,
-  Slide,
 } from '@mui/material';
 import { useParams, useRouter } from 'next/navigation';
-import { doc, getDoc, collection, getDocs, addDoc, deleteDoc } from "firebase/firestore";
+import { doc, getDoc, collection, getDocs, addDoc, deleteDoc, writeBatch } from "firebase/firestore";
 import { db } from '../../../app/firebase';
 import AddExpenseModal from '../../components/AddExpenseModal';
 import { useCurrency } from '../../context/CurrencyContext';
@@ -65,7 +69,8 @@ export default function BookDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<string | string[] | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const { formatCurrency } = useCurrency();
 
   useEffect(() => {
@@ -134,16 +139,34 @@ export default function BookDetailPage() {
     }
   };
 
-  const handleDeleteExpense = async (expenseId: string) => {
-    if (!bookId || typeof bookId !== 'string' || Array.isArray(bookId)) return;
-    if (!window.confirm('Are you sure you want to delete this expense?')) return;
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget || !bookId || typeof bookId !== 'string') return;
 
+    const idsToDelete = Array.isArray(deleteTarget) ? deleteTarget : [deleteTarget];
+    if (idsToDelete.length === 0) {
+      setDeleteTarget(null);
+      return;
+    }
+
+    setIsDeleting(true);
     try {
-      await deleteDoc(doc(db, `books/${bookId}/expenses`, expenseId));
-      setExpenses((prev) => prev.filter((e) => e.id !== expenseId));
-      setSelectedIds((prev) => prev.filter((id) => id !== expenseId));
+      if (idsToDelete.length > 1) {
+        const batch = writeBatch(db);
+        idsToDelete.forEach((id) => {
+          batch.delete(doc(db, `books/${bookId}/expenses`, id));
+        });
+        await batch.commit();
+      } else {
+        await deleteDoc(doc(db, `books/${bookId}/expenses`, idsToDelete[0]));
+      }
+      setExpenses((prev) => prev.filter((e) => !idsToDelete.includes(e.id)));
+      setSelectedIds((prev) => prev.filter((id) => !idsToDelete.includes(id)));
     } catch (e) {
       console.error('Error deleting expense:', e);
+      setError('Failed to delete expense(s).');
+    } finally {
+      setIsDeleting(false);
+      setDeleteTarget(null);
     }
   };
 
@@ -162,7 +185,7 @@ export default function BookDetailPage() {
       {/* Header */}
       <Card sx={{ mb: 3 }}>
         <CardContent sx={{ p: 3 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
             <IconButton
               onClick={() => router.back()}
               sx={{
@@ -181,25 +204,24 @@ export default function BookDetailPage() {
                 {loading ? <Skeleton variant="text" width="40%" /> : `${expenses.length} expense${expenses.length !== 1 ? 's' : ''} recorded`}
               </Typography>
             </Box>
-          </Box>
-
-          <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-            <Button
-              variant="contained"
-              color="success"
-              onClick={() => { setModalInitialType('in'); setIsModalOpen(true); }}
-              startIcon={<FiTrendingUp />}
-            >
-              Cash In
-            </Button>
-            <Button
-              variant="contained"
-              color="error"
-              onClick={() => { setModalInitialType('out'); setIsModalOpen(true); }}
-              startIcon={<FiTrendingDown />}
-            >
-              Cash Out
-            </Button>
+            <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+              <Button
+                variant="contained"
+                color="success"
+                onClick={() => { setModalInitialType('in'); setIsModalOpen(true); }}
+                startIcon={<FiTrendingUp />}
+              >
+                Cash In
+              </Button>
+              <Button
+                variant="contained"
+                color="error"
+                onClick={() => { setModalInitialType('out'); setIsModalOpen(true); }}
+                startIcon={<FiTrendingDown />}
+              >
+                Cash Out
+              </Button>
+            </Box>
           </Box>
         </CardContent>
       </Card>
@@ -211,6 +233,7 @@ export default function BookDetailPage() {
       {/* Summary Cards */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
         <Grid size={{ xs: 12, sm: 4 }}>
+
           {loading ? (
             <StatSkeleton />
           ) : (
@@ -319,74 +342,49 @@ export default function BookDetailPage() {
             <Typography variant="h5" fontWeight={600}>
               Expenses
             </Typography>
-            {expenses.length > 0 && (
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <Checkbox
-                  size="small"
-                  checked={expenses.length > 0 && selectedIds.length === expenses.length}
-                  indeterminate={selectedIds.length > 0 && selectedIds.length < expenses.length}
-                  onChange={(e) => {
-                    if (e.target.checked) setSelectedIds(expenses.map((ex) => ex.id));
-                    else setSelectedIds([]);
-                  }}
-                />
-                <Typography variant="body2" color="text.secondary">
-                  Select all
-                </Typography>
-              </Box>
-            )}
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              {selectedIds.length > 0 ? (
+                <>
+                  <Button 
+                    size="small" 
+                    onClick={() => setSelectedIds([])}
+                    sx={{ color: 'text.secondary', textTransform: 'none' }}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    variant="contained"
+                    color="error"
+                    size="small"
+                    disableElevation
+                    startIcon={<FiTrash2 />}
+                    onClick={() => setDeleteTarget(selectedIds)}
+                    disabled={isDeleting}
+                    sx={{ textTransform: 'none', borderRadius: 2 }}
+                  >
+                    Delete
+                  </Button>
+                </>
+              ) : (
+                expenses.length > 0 && (
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                    <Checkbox
+                      size="small"
+                      checked={expenses.length > 0 && selectedIds.length === expenses.length}
+                      indeterminate={selectedIds.length > 0 && selectedIds.length < expenses.length}
+                      onChange={(e) => {
+                        if (e.target.checked) setSelectedIds(expenses.map((ex) => ex.id));
+                        else setSelectedIds([]);
+                      }}
+                    />
+                    <Typography variant="body2" color="text.secondary">
+                      Select all
+                    </Typography>
+                  </Box>
+                )
+              )}
+            </Box>
           </Box>
-
-          {/* Bulk Actions Bar */}
-          <Slide direction="up" in={selectedIds.length > 0} mountOnEnter unmountOnExit>
-            <Paper
-              sx={{
-                p: 2,
-                mb: 2,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                bgcolor: 'primary.main',
-                color: 'primary.contrastText',
-                borderRadius: 2,
-              }}
-            >
-              <Typography variant="body2" fontWeight={500}>
-                {selectedIds.length} selected
-              </Typography>
-              <Box sx={{ display: 'flex', gap: 1 }}>
-                <Button
-                  size="small"
-                  variant="outlined"
-                  color="inherit"
-                  onClick={() => setSelectedIds([])}
-                  sx={{ borderColor: 'primary.contrastText', color: 'primary.contrastText' }}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  size="small"
-                  variant="contained"
-                  color="error"
-                  disabled={isBulkDeleting}
-                  onClick={async () => {
-                    if (selectedIds.length === 0) return;
-                    if (!window.confirm(`Delete ${selectedIds.length} selected entries?`)) return;
-                    setIsBulkDeleting(true);
-                    try {
-                      await Promise.all(selectedIds.map((id) => deleteDoc(doc(db, `books/${bookId}/expenses`, id))));
-                      setExpenses((prev) => prev.filter((p) => !selectedIds.includes(p.id)));
-                      setSelectedIds([]);
-                    } catch (err) {
-                      console.error('Bulk delete failed', err);
-                    } finally { setIsBulkDeleting(false); }
-                  }}
-                >
-                  Delete Selected
-                </Button>
-              </Box>
-            </Paper>
-          </Slide>
 
           {loading ? (
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
@@ -395,15 +393,18 @@ export default function BookDetailPage() {
               ))}
             </Box>
           ) : expenses.length > 0 ? (
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column' }}>
               {expenses.map((expense) => (
-                <Paper
+                <Box
                   key={expense.id}
                   sx={{
-                    p: 2,
+                    py: 2,
+                    px: 1,
                     display: 'flex',
                     alignItems: 'center',
                     gap: 2,
+                    borderBottom: '1px solid',
+                    borderColor: 'divider',
                     transition: 'background-color 150ms ease',
                     '&:hover': {
                       bgcolor: 'action.hover',
@@ -446,27 +447,28 @@ export default function BookDetailPage() {
 
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                     <Typography
-                      variant="h6"
-                      fontWeight={600}
-                      sx={{ color: expense.type === 'out' ? 'error.main' : 'success.main' }}
+                      variant="subtitle1"
+                      fontWeight={700}
+                      sx={{ color: expense.type === 'out' ? 'error.main' : 'success.main', minWidth: 80, textAlign: 'right' }}
                     >
                       {expense.type === 'out' ? '-' : '+'}{formatCurrency(expense.amount)}
                     </Typography>
                     <IconButton
-                      onClick={() => handleDeleteExpense(expense.id)}
+                      onClick={() => setDeleteTarget(expense.id)}
                       size="small"
+                      disabled={isDeleting}
                       sx={{
                         color: 'text.secondary',
                         '&:hover': {
                           color: 'error.main',
-                          bgcolor: 'error.bg',
+                          bgcolor: 'action.hover',
                         },
                       }}
                     >
                       <FiTrash2 size={18} />
                     </IconButton>
                   </Box>
-                </Paper>
+                </Box>
               ))}
             </Box>
           ) : (
@@ -484,31 +486,7 @@ export default function BookDetailPage() {
             </Box>
           )}
 
-          {/* Delete All Button */}
-          {expenses.length > 0 && (
-            <Box sx={{ mt: 3, pt: 3, borderTop: '1px solid', borderColor: 'divider' }}>
-              <Button
-                disabled={isBulkDeleting}
-                color="error"
-                variant="outlined"
-                size="small"
-                onClick={async () => {
-                  if (!window.confirm('Delete ALL expenses for this book?')) return;
-                  setIsBulkDeleting(true);
-                  try {
-                    const docs = await getDocs(collection(db, `books/${bookId}/expenses`));
-                    await Promise.all(docs.docs.map((d) => deleteDoc(doc(db, `books/${bookId}/expenses`, d.id))));
-                    setExpenses([]);
-                    setSelectedIds([]);
-                  } catch (err) {
-                    console.error('Delete all failed', err);
-                  } finally { setIsBulkDeleting(false); }
-                }}
-              >
-                Delete All Expenses
-              </Button>
-            </Box>
-          )}
+
         </CardContent>
       </Card>
 
@@ -518,6 +496,30 @@ export default function BookDetailPage() {
         onClose={() => { setIsModalOpen(false); setModalInitialType(undefined); }}
         onAddExpense={handleAddExpense}
       />
+
+      <Dialog
+        open={deleteTarget !== null}
+        onClose={() => !isDeleting && setDeleteTarget(null)}
+      >
+        <DialogTitle>Confirm Deletion</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            {`Are you sure you want to delete ${
+              Array.isArray(deleteTarget) && deleteTarget.length > 1
+                ? `${deleteTarget.length} expenses`
+                : 'this expense'
+            }? This action cannot be undone.`}
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteTarget(null)} disabled={isDeleting}>
+            Cancel
+          </Button>
+          <Button onClick={handleConfirmDelete} color="error" disabled={isDeleting} autoFocus>
+            {isDeleting ? 'Deleting...' : 'Delete'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

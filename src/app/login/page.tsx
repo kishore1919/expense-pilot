@@ -23,18 +23,24 @@ export default function Login() {
     try {
       await signInWithEmailAndPassword(auth, email, password);
       router.push('/');
-    } catch (error: unknown) {
-      if (error instanceof Error) {
-        // Convert Firebase error codes to user-friendly messages
-        if (error.message.includes('auth/invalid-credential')) {
+    } catch (err: unknown) {
+      // Prefer using Firebase error codes when available for robust checks
+      const fbErr = err as any;
+      if (fbErr && typeof fbErr === 'object' && 'code' in fbErr) {
+        const code = String(fbErr.code || '');
+        if (code === 'auth/invalid-credential') {
           setError('Invalid email or password. Please try again.');
-        } else if (error.message.includes('auth/user-not-found')) {
+        } else if (code === 'auth/user-not-found') {
           setError('No account found with this email.');
-        } else if (error.message.includes('auth/wrong-password')) {
+        } else if (code === 'auth/wrong-password') {
           setError('Incorrect password. Please try again.');
         } else {
-          setError(error.message);
+          setError(fbErr.message || 'Login failed. Please try again.');
         }
+      } else if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError('Login failed. Please try again.');
       }
     } finally {
       setIsLoading(false);
@@ -117,7 +123,7 @@ export default function Login() {
         {/* Sign up link */}
         <Box sx={{ mt: 4, textAlign: 'center' }}>
           <Typography variant="body2" color="text.secondary">
-            Do not have an account?{' '}
+            Don't have an account?{' '}
             <Link href="/signup" style={{ textDecoration: 'none' }}>
               <Box
                 component="span"

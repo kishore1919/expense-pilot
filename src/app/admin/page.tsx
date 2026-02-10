@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import Link from 'next/link';
 import {
   Typography,
   Box,
@@ -28,7 +29,7 @@ export default function AdminPage() {
             Expense Categories
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Category management has moved to <strong>Settings</strong>. You can add and delete categories from there.
+            Category management has moved to <Link href="/settings" style={{ textDecoration: 'none', color: 'inherit' }}><Box component="span" sx={{ color: 'primary.main', fontWeight: 600 }}>Settings</Box></Link>. You can add and delete categories from there.
           </Typography>
         </CardContent>
       </Card>

@@ -102,6 +102,11 @@ export default function AnalyticsPage() {
     return <Loading />;
   }
 
+  // Derive budget metrics (use a reasonable fallback budget if none configured)
+  const monthlyBudget = Math.max(1000, (typeof window !== 'undefined' && Number(localStorage.getItem('monthly_budget') || '0')) || (totalBooks * 1000));
+  const spendingPercent = totalExpenses > 0 ? Math.min(Math.max(Math.round((totalExpenses / monthlyBudget) * 100), 0), 100) : 0;
+  const healthPercent = totalExpenses > 0 ? Math.min(Math.max(Math.round(((monthlyBudget - totalExpenses) / monthlyBudget) * 100), 0), 100) : 100;
+
   return (
     <Box sx={{ pb: 10 }}>
       <Card sx={{ mb: 4 }}>
@@ -164,7 +169,7 @@ export default function AnalyticsPage() {
                   </Box>
                   <LinearProgress
                     variant="determinate"
-                    value={totalExpenses > 0 ? 65 : 0}
+                    value={spendingPercent}
                     sx={{ height: 12, borderRadius: 6 }}
                   />
                 </Box>
@@ -197,7 +202,7 @@ export default function AnalyticsPage() {
                   </Box>
                   <LinearProgress
                     variant="determinate"
-                    value={80}
+                    value={healthPercent}
                     color="warning"
                     sx={{ height: 12, borderRadius: 6 }}
                   />

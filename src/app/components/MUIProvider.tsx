@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect } from 'react';
 import { ThemeProvider, createTheme, Shadows } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import { useTheme as useAppTheme } from '../context/ThemeContext';
@@ -373,9 +373,11 @@ export default function MUIProvider({ children }: { children: React.ReactNode })
                 padding: 2,
                 '&.Mui-checked': {
                   transform: 'translateX(20px)',
+                  color: '#FFFFFF', // ensure thumb is visible on dark backgrounds
                   '& + .MuiSwitch-track': {
-                    backgroundColor: '#6366F1',
+                    backgroundColor: isDarkMode ? '#6E57F8' : '#6366F1',
                     opacity: 1,
+                    border: isDarkMode ? '1px solid rgba(255,255,255,0.06)' : undefined,
                   },
                 },
               },
@@ -383,11 +385,13 @@ export default function MUIProvider({ children }: { children: React.ReactNode })
                 width: 20,
                 height: 20,
                 boxShadow: 'none',
+                backgroundColor: isDarkMode ? '#FFFFFF' : undefined,
               },
               track: {
                 borderRadius: 12,
                 backgroundColor: isDarkMode ? '#475569' : '#D1D5DB',
                 opacity: 1,
+                border: isDarkMode ? '1px solid rgba(255,255,255,0.03)' : undefined,
               },
             },
           },
@@ -464,6 +468,25 @@ export default function MUIProvider({ children }: { children: React.ReactNode })
       }),
     [isDarkMode]
   );
+
+  // Keep CSS variables and color-scheme in sync with the MUI theme so global styles and Tailwind dark variants match.
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    const root = document.documentElement;
+
+    // Map important tokens to CSS variables used in globals.css
+    root.style.setProperty('--color-bg-primary', theme.palette.background.default || (isDarkMode ? '#0F172A' : '#FAFAFA'));
+    root.style.setProperty('--color-bg-secondary', theme.palette.background.paper || (isDarkMode ? '#1E293B' : '#FFFFFF'));
+    root.style.setProperty('--color-text-primary', (theme.palette.text.primary as string) || (isDarkMode ? '#F8FAFC' : '#111827'));
+    root.style.setProperty('--color-text-secondary', (theme.palette.text.secondary as string) || (isDarkMode ? '#94A3B8' : '#6B7280'));
+    root.style.setProperty('--color-border-subtle', (theme.palette.divider as string) || (isDarkMode ? '#334155' : '#E5E7EB'));
+    root.style.setProperty('--color-border-default', isDarkMode ? '#475569' : '#D1D5DB');
+    root.style.setProperty('--color-primary', theme.palette.primary.main || '#6366F1');
+    root.style.setProperty('--color-primary-bg', theme.palette.primary.light || '#EEF2FF');
+
+    // Set color-scheme on the root for form controls and scrollbar defaults
+    root.style.colorScheme = isDarkMode ? 'dark' : 'light';
+  }, [theme, isDarkMode]);
 
   return (
     <ThemeProvider theme={theme}>

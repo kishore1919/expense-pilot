@@ -73,9 +73,7 @@ export default function AddExpenseModal({ isOpen, onClose, onAddExpense, initial
 
         if (categoriesData.length > 0) {
           setAvailableCategories(categoriesData);
-          if (!categoriesData.includes(category)) {
-            setCategory(categoriesData[0]);
-          }
+          setCategory((prev) => categoriesData.includes(prev) ? prev : categoriesData[0]);
         } else {
           setAvailableCategories(DEFAULT_CATEGORIES);
         }
@@ -88,7 +86,7 @@ export default function AddExpenseModal({ isOpen, onClose, onAddExpense, initial
     if (isOpen) {
       fetchCategories();
     }
-  }, [isOpen, category]);
+  }, [isOpen]);
 
   useEffect(() => {
     if (isOpen) {
@@ -133,8 +131,8 @@ export default function AddExpenseModal({ isOpen, onClose, onAddExpense, initial
       handleClose();
     } catch (err) {
       console.error('Save failed:', err);
-      const errorMessage = err instanceof Error ? err.message : 'Failed to save entry. Please try again.';
-      setErrorMessage(errorMessage);
+      const errMsg = err instanceof Error ? err.message : 'Failed to save entry. Please try again.';
+      setErrorMessage(errMsg);
     } finally {
       setIsSaving(false);
     }

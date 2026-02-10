@@ -154,25 +154,37 @@ export default function BookDetailPage() {
       setIsModalOpen(false);
     } catch (e) {
       console.error("Error adding:", e);
+      const msg = e instanceof Error ? e.message : String(e);
+      setError(`Failed to add expense: ${msg}`);
     }
   };
 
   const handleConfirmDelete = async () => {
     if (!deleteTarget || !bookId || typeof bookId !== 'string') return;
     setIsDeleting(true);
-    const idsToDelete = Array.isArray(deleteTarget) ? deleteTarget : [deleteTarget];
-    
+    const ids = Array.isArray(deleteTarget) ? deleteTarget : [deleteTarget];
+
+    // Only delete ids that are still visible in the current filtered set (defensive)
+    const idsToDelete = ids.filter(id => filteredExpenses.some(ex => ex.id === id));
+    if (idsToDelete.length === 0) {
+      setError('No selected items match the current filters.');
+      setIsDeleting(false);
+      setDeleteTarget(null);
+      return;
+    }
+
     try {
       const batch = writeBatch(db);
-      idsToDelete.forEach(id => {
-        batch.delete(doc(db, `books/${bookId}/expenses`, id));
-      });
+      idsToDelete.forEach(id => batch.delete(doc(db, `books/${bookId}/expenses`, id)));
       await batch.commit();
-      
+
       setExpenses(prev => prev.filter(e => !idsToDelete.includes(e.id)));
       setSelectedIds(prev => prev.filter(id => !idsToDelete.includes(id)));
+      setError(null);
     } catch (e) {
-      setError('Failed to delete.');
+      console.error('Failed to delete items:', e);
+      const msg = e instanceof Error ? e.message : String(e);
+      setError(`Failed to delete selected items: ${msg}`);
     } finally {
       setIsDeleting(false);
       setDeleteTarget(null);
@@ -238,10 +250,19 @@ export default function BookDetailPage() {
   // Pagination / derived values
   const totalFiltered = filteredExpenses.length;
   const totalPages = Math.max(1, Math.ceil(sortedWithBalance.length / pageSize));
-  if (page > totalPages) setPage(1);
   const startIndex = totalFiltered === 0 ? 0 : (page - 1) * pageSize + 1;
   const endIndex = Math.min(page * pageSize, totalFiltered);
   const displayedExpenses = sortedWithBalance.slice((page - 1) * pageSize, page * pageSize);
+
+  // Keep page within bounds — update state after render when totalPages changes
+  useEffect(() => {
+    if (page > totalPages) setPage(1);
+  }, [page, totalPages]);
+
+  // Clear selections when filters / search change so we don't hold ids that are no longer visible
+  useEffect(() => {
+    setSelectedIds([]);
+  }, [durationFilter, typeFilter, paymentModeFilter, categoryFilter, searchTerm]);
 
   // Utilities
   const handleSort = (field: 'createdAt' | 'amount' | 'balance') => {
@@ -293,7 +314,7 @@ export default function BookDetailPage() {
       {/* --- Filter Bar --- */}
       <Box sx={{ display: 'flex', gap: 2, mb: 4, flexWrap: 'wrap' }}>
         <FormControl size="small" sx={{ minWidth: 160 }}>
-          <Select value={durationFilter} onChange={(e) => setDurationFilter(e.target.value as any)} displayEmpty sx={{ bgcolor: 'white', fontSize: '0.875rem' }}>
+          <Select value={durationFilter} onChange={(e) => setDurationFilter(e.target.value as any)} displayEmpty sx={{ bgcolor: (theme) => theme.palette.mode === 'dark' ? '#0F172A' : 'white', fontSize: '0.875rem' }}>
             <MenuItem value={'all'}>Duration: All Time</MenuItem>
             <MenuItem value={'7'}>Last 7 days</MenuItem>
             <MenuItem value={'30'}>Last 30 days</MenuItem>
@@ -302,7 +323,7 @@ export default function BookDetailPage() {
         </FormControl>
 
         <FormControl size="small" sx={{ minWidth: 140 }}>
-          <Select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value as any)} sx={{ bgcolor: 'white', fontSize: '0.875rem' }}>
+          <Select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value as any)} sx={{ bgcolor: (theme) => theme.palette.mode === 'dark' ? '#0F172A' : 'white', fontSize: '0.875rem' }}>
             <MenuItem value={'all'}>Types: All</MenuItem>
             <MenuItem value={'in'}>Income</MenuItem>
             <MenuItem value={'out'}>Expense</MenuItem>
@@ -310,7 +331,7 @@ export default function BookDetailPage() {
         </FormControl>
 
         <FormControl size="small" sx={{ minWidth: 160 }}>
-          <Select value={paymentModeFilter} onChange={(e) => setPaymentModeFilter(e.target.value)} sx={{ bgcolor: 'white', fontSize: '0.875rem' }}>
+          <Select value={paymentModeFilter} onChange={(e) => setPaymentModeFilter(e.target.value)} sx={{ bgcolor: (theme) => theme.palette.mode === 'dark' ? '#0F172A' : 'white', fontSize: '0.875rem' }}>
             <MenuItem value={'all'}>Payment Modes: All</MenuItem>
             {Array.from(new Set(expenses.map(e => e.paymentMode || 'Online'))).map(pm => (
               <MenuItem key={pm} value={pm}>{pm}</MenuItem>
@@ -319,7 +340,7 @@ export default function BookDetailPage() {
         </FormControl>
 
         <FormControl size="small" sx={{ minWidth: 160 }}>
-          <Select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} sx={{ bgcolor: 'white', fontSize: '0.875rem' }}>
+          <Select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} sx={{ bgcolor: (theme) => theme.palette.mode === 'dark' ? '#0F172A' : 'white', fontSize: '0.875rem' }}>
             <MenuItem value={'all'}>Categories: All</MenuItem>
             {Array.from(new Set(expenses.map(e => e.category || 'General'))).map(cat => (
               <MenuItem key={cat} value={cat}>{cat}</MenuItem>
@@ -337,10 +358,10 @@ export default function BookDetailPage() {
           onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }}
           placeholder="Search by remark, description or amount..."
           size="small"
-          sx={{ flex: 1, maxWidth: 500, bgcolor: 'white' }}
+          sx={{ flex: 1, maxWidth: 500, '& .MuiOutlinedInput-root': { bgcolor: (theme) => theme.palette.mode === 'dark' ? '#0F172A' : 'white' } }}
           InputProps={{
             startAdornment: <InputAdornment position="start"><FiSearch color="#999" /></InputAdornment>,
-            endAdornment: <Box sx={{ border: '1px solid #eee', px: 1, borderRadius: 1, fontSize: 12, color: '#999' }}>/</Box>
+            endAdornment: <Box sx={{ border: (theme) => `1px solid ${theme.palette.mode === 'dark' ? '#334155' : '#eee'}`, px: 1, borderRadius: 1, fontSize: 12, color: (theme) => theme.palette.mode === 'dark' ? '#94A3B8' : '#999', bgcolor: (theme) => theme.palette.mode === 'dark' ? '#0B1220' : 'transparent' }}>/</Box>
           }}
         />
         <Box sx={{ display: 'flex', gap: 2 }}>
@@ -375,7 +396,7 @@ export default function BookDetailPage() {
           <Box key={idx} sx={{ flex: 1, minWidth: 0 }}>
             <Paper elevation={0} sx={{ 
               width: '100%',
-              border: '1px solid #e0e0e0', 
+              border: (theme) => `1px solid ${theme.palette.mode === 'dark' ? '#334155' : '#e0e0e0'}` , 
               px: 2,
               py: 2, // Increased vertical padding (length)
               display: 'flex', 
@@ -399,9 +420,9 @@ export default function BookDetailPage() {
                 <Typography variant="subtitle1" color="text.secondary" fontWeight={600} textTransform="uppercase" gutterBottom>
                   {stat.label}
                 </Typography>
-                <Typography variant="h3" fontWeight={700} color="#172B4D" sx={{ letterSpacing: '-0.5px' }}>
+                <Typography variant="h3" fontWeight={700} color="text.primary" sx={{ letterSpacing: '-0.5px' }}>
                    {/* Use formatter if available, else simple fallback */}
-                   {stat.amount.toLocaleString()} 
+                   {formatCurrency ? formatCurrency(stat.amount) : stat.amount.toLocaleString()} 
                 </Typography>
               </Box>
             </Paper>
@@ -432,9 +453,9 @@ export default function BookDetailPage() {
         </Box>
       </Box>
 
-      <TableContainer component={Paper} elevation={0} sx={{ border: '1px solid #f0f0f0' }}>
+      <TableContainer component={Paper} elevation={0} sx={{ border: (theme) => `1px solid ${theme.palette.mode === 'dark' ? '#334155' : '#f0f0f0'}` }}>
         <Table sx={{ minWidth: 650 }} aria-label="expenses table">
-          <TableHead sx={{ bgcolor: '#F4F5F7' }}>
+          <TableHead sx={{ bgcolor: (theme) => theme.palette.mode === 'dark' ? '#071427' : '#F4F5F7', '& th': { color: (theme) => theme.palette.mode === 'dark' ? '#94A3B8' : '#5E6C84' } }}>
             <TableRow>
               <TableCell padding="checkbox">
                 <Checkbox 
@@ -446,15 +467,15 @@ export default function BookDetailPage() {
               </TableCell>
               <TableCell 
                 onClick={() => handleSort('createdAt')} 
-                sx={{ fontWeight: 600, color: '#5E6C84', fontSize: '0.8rem', cursor: 'pointer' }}
+                sx={{ fontWeight: 600, color: (theme) => theme.palette.mode === 'dark' ? '#94A3B8' : '#5E6C84', fontSize: '0.8rem', cursor: 'pointer' }}
               >
                 <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
                   Date & Time {sortBy === 'createdAt' ? (sortDir === 'asc' ? <FiChevronDown style={{ transform: 'rotate(180deg)' }} /> : <FiChevronDown />) : null}
                 </Box>
               </TableCell>
-              <TableCell sx={{ fontWeight: 600, color: '#5E6C84', fontSize: '0.8rem' }}>Details</TableCell>
-              <TableCell sx={{ fontWeight: 600, color: '#5E6C84', fontSize: '0.8rem' }}>Category</TableCell>
-              <TableCell sx={{ fontWeight: 600, color: '#5E6C84', fontSize: '0.8rem' }}>Mode</TableCell>
+              <TableCell sx={{ fontWeight: 600, color: (theme) => theme.palette.mode === 'dark' ? '#94A3B8' : '#5E6C84', fontSize: '0.8rem' }}>Details</TableCell>
+              <TableCell sx={{ fontWeight: 600, color: (theme) => theme.palette.mode === 'dark' ? '#94A3B8' : '#5E6C84', fontSize: '0.8rem' }}>Category</TableCell>
+              <TableCell sx={{ fontWeight: 600, color: (theme) => theme.palette.mode === 'dark' ? '#94A3B8' : '#5E6C84', fontSize: '0.8rem' }}>Mode</TableCell>
               <TableCell 
                 align="right" 
                 onClick={() => handleSort('amount')} 
@@ -490,7 +511,7 @@ export default function BookDetailPage() {
                     key={row.id}
                     hover
                     selected={isSelected}
-                    sx={{ '&:last-child td, &:last-child th': { border: 0 } }}
+                    sx={{ '&:last-child td, &:last-child th': { border: 0 }, '&:hover': (theme) => ({ backgroundColor: theme.palette.mode === 'dark' ? '#071427' : undefined }) }}
                   >
                     <TableCell padding="checkbox">
                       <Checkbox
@@ -523,12 +544,12 @@ export default function BookDetailPage() {
                         noWrap
                         sx={{ textOverflow: 'ellipsis', overflow: 'hidden' }}
                       >
-                         {row.amount.toLocaleString()}
+                         {formatCurrency ? formatCurrency(row.amount) : row.amount.toLocaleString()}
                       </Typography>
                     </TableCell>
                     <TableCell align="right" sx={{ width: 140, minWidth: 120 }}>
                       <Typography variant="body2" fontWeight={500} noWrap sx={{ textOverflow: 'ellipsis', overflow: 'hidden' }}>
-                         {row.balance.toLocaleString()}
+                         {formatCurrency ? formatCurrency(row.balance) : row.balance.toLocaleString()}
                       </Typography>
                     </TableCell>
                   </TableRow>
@@ -541,7 +562,7 @@ export default function BookDetailPage() {
 
       {/* Delete Fab/Action (Contextual) */}
       {selectedIds.length > 0 && (
-         <Box sx={{ position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)', bgcolor: 'white', p: 2, borderRadius: 2, boxShadow: 3, display: 'flex', gap: 2, alignItems: 'center', zIndex: 10 }}>
+         <Box sx={{ position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)', bgcolor: (theme) => theme.palette.mode === 'dark' ? '#0B1220' : 'white', p: 2, borderRadius: 2, boxShadow: 3, display: 'flex', gap: 2, alignItems: 'center', zIndex: 10 }}>
            <Typography variant="body2">{selectedIds.length} items selected</Typography>
            <Button variant="contained" color="error" size="small" onClick={() => setDeleteTarget(selectedIds)}>Delete Selected</Button>
            <Button variant="outlined" size="small" onClick={() => setSelectedIds([])}>Cancel</Button>

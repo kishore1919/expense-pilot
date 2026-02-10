@@ -49,7 +49,7 @@ interface Book {
 
 // Skeleton loader for list rows
 const ListSkeleton = () => (
-  <Paper elevation={0} sx={{ p: 2, mb: 2, border: '1px solid #f0f0f0', display: 'flex', alignItems: 'center', gap: 2 }}>
+  <Paper elevation={0} sx={{ p: 2, mb: 2, border: (theme) => `1px solid ${theme.palette.mode === 'dark' ? '#334155' : '#f0f0f0'}`, display: 'flex', alignItems: 'center', gap: 2 }}>
     <Skeleton variant="circular" width={40} height={40} />
     <Box sx={{ flex: 1 }}>
       <Skeleton variant="text" width="40%" height={24} />
@@ -149,18 +149,27 @@ export default function BooksPage() {
     setIsDeleting(true);
     const id = deleteTarget;
     try {
-      // Delete expenses in the book (if any) then delete the book doc itself
+      // Delete expenses in the book in chunks to avoid Firestore batch limits
       const expensesSnap = await getDocs(collection(db, `books/${id}/expenses`));
-      const batch = writeBatch(db);
-      expensesSnap.docs.forEach((d) => batch.delete(doc(db, `books/${id}/expenses`, d.id)));
-      batch.delete(doc(db, 'books', id));
-      await batch.commit();
+      const expenseDocs = expensesSnap.docs;
+      const chunkSize = 499; // keep below 500 per batch
+
+      for (let i = 0; i < expenseDocs.length; i += chunkSize) {
+        const batch = writeBatch(db);
+        const chunk = expenseDocs.slice(i, i + chunkSize);
+        chunk.forEach(d => batch.delete(doc(db, `books/${id}/expenses`, d.id)));
+        await batch.commit();
+      }
+
+      // Delete the book document itself (in its own operation)
+      await deleteDoc(doc(db, 'books', id));
 
       setBooks(prev => prev.filter(b => b.id !== id));
       setError(null);
     } catch (e) {
       console.error('Error deleting book:', e);
-      setError('Failed to delete book.');
+      const msg = e instanceof Error ? e.message : String(e);
+      setError(`Failed to delete book: ${msg}`);
     } finally {
       setIsDeleting(false);
       setDeleteTarget(null);
@@ -205,7 +214,7 @@ export default function BooksPage() {
           sx={{ 
             flex: 1, 
             width: '100%',
-            '& .MuiOutlinedInput-root': { bgcolor: 'white' } 
+            '& .MuiOutlinedInput-root': { bgcolor: (theme) => theme.palette.mode === 'dark' ? '#0F172A' : 'white' } 
           }}
           InputProps={{
             startAdornment: (
@@ -216,12 +225,12 @@ export default function BooksPage() {
             endAdornment: (
               <InputAdornment position="end">
                 <Box sx={{ 
-                  border: '1px solid #ddd', 
+                  border: (theme) => `1px solid ${theme.palette.mode === 'dark' ? '#475569' : '#ddd'}`, 
                   borderRadius: 1, 
                   px: 1, 
-                  color: '#888', 
+                  color: (theme) => theme.palette.mode === 'dark' ? '#94A3B8' : '#888', 
                   fontSize: '0.75rem',
-                  bgcolor: '#f9f9f9'
+                  bgcolor: (theme) => theme.palette.mode === 'dark' ? '#0B1220' : '#f9f9f9'
                 }}>
                   /
                 </Box>
@@ -235,7 +244,7 @@ export default function BooksPage() {
           <Select
             value={sortBy}
             displayEmpty
-            sx={{ bgcolor: 'white' }}
+            sx={{ bgcolor: (theme) => theme.palette.mode === 'dark' ? '#0F172A' : 'white' }}
             onChange={(e) => setSortBy(e.target.value as 'last-updated' | 'name')}
             renderValue={(selected) => {
               if (selected === 'last-updated') return 'Sort By: Last Updated';
@@ -282,17 +291,17 @@ export default function BooksPage() {
                 p: 2,
                 mb: 2,
                 borderRadius: 2,
-                border: '1px solid transparent',
+                border: (theme) => `1px solid ${theme.palette.mode === 'dark' ? 'transparent' : 'transparent'}`,
                 display: 'flex',
                 alignItems: 'center',
                 flexWrap: 'wrap',
                 gap: 2,
                 cursor: 'pointer',
                 transition: 'all 0.2s',
-                '&:hover': {
-                  bgcolor: '#f8f9fc', // Very light blue/grey hover
-                  borderColor: '#e0e0e0',
-                }
+                '&:hover': (theme) => ({
+                  bgcolor: theme.palette.mode === 'dark' ? '#0B1220' : '#f8f9fc',
+                  borderColor: theme.palette.mode === 'dark' ? '#334155' : '#e0e0e0',
+                })
               }}
               onClick={() => handleBookClick(book.id)}
             >
@@ -301,7 +310,7 @@ export default function BooksPage() {
                 width: 48, 
                 height: 48, 
                 borderRadius: '50%', 
-                bgcolor: '#eef2ff', 
+                bgcolor: (theme) => theme.palette.mode === 'dark' ? '#0F172A' : '#eef2ff', 
                 color: '#4361EE',
                 display: 'flex', 
                 alignItems: 'center', 
@@ -312,7 +321,7 @@ export default function BooksPage() {
 
               {/* Title & Date */}
               <Box sx={{ flex: 1, minWidth: 150 }}>
-                <Typography variant="subtitle1" fontWeight={600} color="#1a1a1a">
+                <Typography variant="subtitle1" fontWeight={600} color="text.primary">
                   {book.name}
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
@@ -365,20 +374,22 @@ export default function BooksPage() {
       <Paper elevation={0} sx={{ 
         p: 3, 
         mt: 4, 
-        border: '1px solid #f0f0f0', 
+        border: (theme) => `1px solid ${theme.palette.mode === 'dark' ? '#334155' : '#f0f0f0'}` ,
         borderRadius: 2,
         display: 'flex',
         alignItems: { xs: 'flex-start', md: 'center' },
         gap: 3,
-        flexDirection: { xs: 'column', md: 'row' }
+        flexDirection: { xs: 'column', md: 'row' },
+        backgroundColor: (theme) => theme.palette.mode === 'dark' ? '#0F172A' : undefined
       }}>
+
         <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
            <Box sx={{ 
              width: 48, 
              height: 48, 
              borderRadius: '50%', 
-             bgcolor: '#e8f5e9', // Light green bg for the icon
-             color: '#2e7d32',
+             bgcolor: (theme) => theme.palette.mode === 'dark' ? '#072018' : '#e8f5e9', 
+             color: (theme) => theme.palette.mode === 'dark' ? '#6EE7B7' : '#2e7d32',
              display: 'flex', 
              alignItems: 'center', 
              justifyContent: 'center',
@@ -387,7 +398,7 @@ export default function BooksPage() {
              <img 
                src="https://cdn-icons-png.flaticon.com/512/2921/2921222.png" 
                alt="Add" 
-               style={{ width: 24, height: 24, opacity: 0.7 }} 
+               style={{ width: 24, height: 24, opacity: 0.8 }} 
              /> 
              {/* Alternatively use <FiPlus size={24} /> if no image asset */}
            </Box>
@@ -404,11 +415,11 @@ export default function BooksPage() {
               label={suggestion} 
               onClick={() => handleAddBook(suggestion)}
               sx={{ 
-                bgcolor: '#eff2ff', 
-                color: '#4361EE', 
+                bgcolor: (theme) => theme.palette.mode === 'dark' ? '#0E1B2A' : '#eff2ff', 
+                color: (theme) => theme.palette.mode === 'dark' ? '#7FB3FF' : '#4361EE', 
                 fontWeight: 500,
                 cursor: 'pointer',
-                '&:hover': { bgcolor: '#dde4ff' }
+                '&:hover': { bgcolor: (theme) => theme.palette.mode === 'dark' ? '#0B1522' : '#dde4ff' }
               }} 
             />
           ))}

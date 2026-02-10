@@ -130,8 +130,11 @@ export default function Dashboard() {
 
         expensesSnap.docs.forEach((ed) => {
           const data = ed.data();
-          if (data.type === 'in') cashIn += (data.amount as number) ?? 0;
-          else cashOut += (data.amount as number) ?? 0;
+          const raw = data.amount;
+          const amountNum = Number(raw);
+          const safeAmt = Number.isFinite(amountNum) ? amountNum : 0;
+          if (data.type === 'in') cashIn += safeAmt;
+          else cashOut += safeAmt;
         });
 
         return {
@@ -401,7 +404,7 @@ export default function Dashboard() {
                           variant="h6"
                           fontWeight={600}
                           sx={{
-                            color: book.net && book.net >= 0 ? 'success.main' : 'error.main',
+                            color: (typeof book.net === 'number' && book.net >= 0) ? 'success.main' : 'error.main',
                           }}
                         >
                           {book.net !== undefined ? formatCurrency(book.net) : '—'}

@@ -16,8 +16,15 @@ const DRAWER_COLLAPSED_WIDTH = 72;
 export function SidebarProvider({ children }: { children: ReactNode }) {
   const [isCollapsed, setIsCollapsed] = useState(() => {
     if (typeof window === 'undefined') return false;
-    const saved = localStorage.getItem('sidebar_collapsed');
-    return saved ? JSON.parse(saved) : false;
+    try {
+      const saved = localStorage.getItem('sidebar_collapsed');
+      if (!saved) return false;
+      const parsed = JSON.parse(saved);
+      return typeof parsed === 'boolean' ? parsed : false;
+    } catch (e) {
+      console.error('Failed to read sidebar collapsed state:', e);
+      return false;
+    }
   });
 
   useEffect(() => {

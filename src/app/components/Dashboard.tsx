@@ -7,6 +7,7 @@ import Card from './Card';
 import AddBookModal from './AddBookModal';
 import Loading from './Loading';
 import { collection, addDoc, getDocs, query, orderBy } from "firebase/firestore";
+import { useCurrency } from '../context/CurrencyContext';
 import { db } from '../firebase';
 import { useRouter } from 'next/navigation';
 
@@ -16,6 +17,7 @@ interface Book {
   createdAt?: string;
   // Preserve the raw createdAt date for accurate metrics (month/year checks)
   createdAtRaw?: Date | null;
+  net?: number;
 }
 
 const EmptyState = ({ setIsModalOpen }: { setIsModalOpen: (isOpen: boolean) => void }) => (
@@ -40,6 +42,7 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+  const { formatCurrency } = useCurrency();
 
   useEffect(() => {
     fetchBooks();
@@ -50,17 +53,32 @@ const Dashboard = () => {
       setLoading(true);
       const q = query(collection(db, 'books'), orderBy('createdAt', 'desc'));
       const querySnapshot = await getDocs(q);
-      const booksData = querySnapshot.docs.map(doc => {
+
+      const booksData = await Promise.all(querySnapshot.docs.map(async (doc) => {
         const raw = doc.data().createdAt;
         const createdAtDate = raw?.toDate?.() ?? null;
+
+        // Fetch expenses for this book to compute net balance
+        const expensesSnap = await getDocs(collection(db, `books/${doc.id}/expenses`));
+        let cashIn = 0;
+        let cashOut = 0;
+
+        expensesSnap.docs.forEach((ed) => {
+          const data = ed.data() as any;
+          if (data.type === 'in') cashIn += data.amount ?? 0;
+          else cashOut += data.amount ?? 0;
+        });
+
         return {
           id: doc.id,
           name: doc.data().name,
           createdAt: createdAtDate ? createdAtDate.toLocaleDateString() : 'Recently',
           createdAtRaw: createdAtDate,
-        } as Book;
-      });
-      setBooks(booksData);
+          net: cashIn - cashOut,
+        } as any;
+      }));
+
+      setBooks(booksData as Book[]);
       setError(null);
     } catch (e) {
       console.error("Error fetching books:", e);
@@ -182,8 +200,8 @@ const Dashboard = () => {
                         <p className="text-sm text-slate-500">Created {book.createdAt}</p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <span className="hidden text-sm font-semibold text-slate-500 sm:inline">Open book</span>
+                    <div className="flex items-center gap-6">
+                      <div className={`font-semibold ${book.net && book.net >= 0 ? 'text-green-700' : 'text-red-700'}`}>{book.net !== undefined ? formatCurrency(book.net) : ''}</div>
                       <FiArrowRight className="text-slate-400 transition group-hover:translate-x-1 group-hover:text-teal-700" />
                     </div>
                   </button>

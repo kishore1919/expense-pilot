@@ -1,9 +1,9 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { FiPlus, FiChevronLeft } from 'react-icons/fi';
+import { FiPlus, FiChevronLeft, FiTrash2 } from 'react-icons/fi';
 import { useParams, useRouter } from 'next/navigation';
-import { doc, getDoc, collection, getDocs, addDoc } from "firebase/firestore";
+import { doc, getDoc, collection, getDocs, addDoc, deleteDoc } from "firebase/firestore";
 import { db } from '../../../app/firebase';
 import AddExpenseModal from '../../components/AddExpenseModal';
 import Loading from '../../components/Loading';
@@ -14,6 +14,12 @@ interface Expense {
   id: string;
   description: string;
   amount: number;
+  type?: 'in' | 'out';
+  createdAt?: Date;
+  remarks?: string;
+  category?: string;
+  paymentMode?: string;
+  attachments?: string[];
 }
 
 const BookDetailPage = () => {
@@ -22,6 +28,7 @@ const BookDetailPage = () => {
   const [bookName, setBookName] = useState('');
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [modalInitialType, setModalInitialType] = useState<'in' | 'out' | undefined>(undefined);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { formatCurrency } = useCurrency();
@@ -50,7 +57,23 @@ const BookDetailPage = () => {
         }
 
         const expensesQuery = await getDocs(collection(db, `books/${bookId}/expenses`));
-        const expensesData = expensesQuery.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Expense));
+        const expensesData = expensesQuery.docs.map((d) => {
+          const data = d.data() as any;
+          const createdAtRaw = data.createdAt;
+          const createdAt = createdAtRaw && typeof createdAtRaw.toDate === 'function' ? createdAtRaw.toDate() : (createdAtRaw ? new Date(createdAtRaw) : new Date());
+
+          return {
+            id: d.id,
+            description: data.description,
+            amount: data.amount,
+            type: data.type ?? 'out',
+            createdAt,
+            remarks: data.remarks,
+            category: data.category,
+            paymentMode: data.paymentMode,
+            attachments: data.attachments ?? [],
+          } as Expense;
+        });
         setExpenses(expensesData);
       } catch (e) {
         console.error("Error loading book details:", e);
@@ -63,10 +86,11 @@ const BookDetailPage = () => {
     fetchBookDetails();
   }, [bookId]);
 
-  const handleAddExpense = async (expense: { description: string; amount: number }) => {
+  const handleAddExpense = async (expense: { description: string; amount: number; type: 'in' | 'out'; createdAt: Date; remarks?: string; category?: string; paymentMode?: string; attachments?: string[] }) => {
     if (!bookId || typeof bookId !== 'string' || Array.isArray(bookId)) return;
 
     try {
+      // Store createdAt as Date object - Firestore will convert it to a timestamp
       const docRef = await addDoc(collection(db, `books/${bookId}/expenses`), expense);
       setExpenses([...expenses, { id: docRef.id, ...expense }]);
       setIsModalOpen(false);
@@ -75,7 +99,31 @@ const BookDetailPage = () => {
     }
   };
 
-  const totalExpense = expenses.reduce((sum, item) => sum + item.amount, 0);
+  const handleDeleteExpense = async (expenseId: string) => {
+    if (!bookId || typeof bookId !== 'string' || Array.isArray(bookId)) return;
+    if (!window.confirm('Are you sure you want to delete this expense?')) return;
+
+    try {
+      await deleteDoc(doc(db, `books/${bookId}/expenses`, expenseId));
+      setExpenses((prev) => prev.filter((e) => e.id !== expenseId));
+    } catch (e) {
+      console.error('Error deleting expense:', e);
+    }
+  };
+
+  const cashIn = expenses.reduce((sum, item) => sum + (item.type === 'in' ? item.amount : 0), 0);
+  const cashOut = expenses.reduce((sum, item) => sum + (item.type === 'out' ? item.amount : 0), 0);
+  const totalExpense = cashOut;
+  const netBalance = cashIn - cashOut;
+
+  // Compute running balances per entry (ascending by date)
+  const expensesAsc = [...expenses].sort((a, b) => (a.createdAt?.getTime() ?? 0) - (b.createdAt?.getTime() ?? 0));
+  const runningBalances: Record<string, number> = {};
+  let acc = 0;
+  for (const e of expensesAsc) {
+    acc += e.type === 'in' ? e.amount : -e.amount;
+    runningBalances[e.id] = acc;
+  }
 
   if (loading) {
     return <Loading />;
@@ -95,9 +143,14 @@ const BookDetailPage = () => {
             </p>
           </div>
         </div>
-        <button onClick={() => setIsModalOpen(true)} className="btn-primary w-full md:w-auto">
-          <FiPlus /> Add New Expense
-        </button>
+        <div className="flex gap-3 w-full md:w-auto">
+          <button onClick={() => { setModalInitialType('in'); setIsModalOpen(true); }} className="btn-success w-full md:w-auto">
+            + Cash In
+          </button>
+          <button onClick={() => { setModalInitialType('out'); setIsModalOpen(true); }} className="btn-danger w-full md:w-auto">
+            - Cash Out
+          </button>
+        </div>
       </header>
 
       {error && (
@@ -106,18 +159,16 @@ const BookDetailPage = () => {
 
       <section className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <Card>
-          <p className="text-sm text-slate-500">Total Spent</p>
-          <p className="metric-value mt-2 text-red-700">{formatCurrency(totalExpense)}</p>
+          <p className="text-sm text-slate-500">Cash In</p>
+          <p className="metric-value mt-2 text-green-700">{formatCurrency(cashIn)}</p>
         </Card>
         <Card>
-          <p className="text-sm text-slate-500">Entries</p>
-          <p className="metric-value mt-2">{expenses.length}</p>
+          <p className="text-sm text-slate-500">Cash Out</p>
+          <p className="metric-value mt-2 text-red-700">{formatCurrency(cashOut)}</p>
         </Card>
         <Card>
-          <p className="text-sm text-slate-500">Average Expense</p>
-          <p className="metric-value mt-2">
-            {formatCurrency(expenses.length ? totalExpense / expenses.length : 0)}
-          </p>
+          <p className="text-sm text-slate-500">Net Balance</p>
+          <p className={`metric-value mt-2 ${netBalance >= 0 ? 'text-green-700' : 'text-red-700'}`}>{formatCurrency(netBalance)}</p>
         </Card>
       </section>
 
@@ -130,8 +181,22 @@ const BookDetailPage = () => {
             <div className="space-y-3">
               {expenses.map((expense) => (
                 <div key={expense.id} className="flex items-center justify-between rounded-xl border border-slate-200 bg-white/75 px-4 py-3">
-                  <span className="font-medium text-slate-800">{expense.description}</span>
-                  <span className="text-lg font-semibold text-red-700">{formatCurrency(-expense.amount)}</span>
+                  <div className="flex items-center gap-4">
+                    <span className="font-medium text-slate-800">{expense.description}</span>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <span className={`text-lg font-semibold ${expense.type === 'out' ? 'text-red-700' : 'text-green-700'}`}>
+                      {expense.type === 'out' ? formatCurrency(-expense.amount) : formatCurrency(expense.amount)}
+                    </span>
+                    <button
+                      onClick={() => handleDeleteExpense(expense.id)}
+                      className="icon-button text-red-600 hover:text-red-800"
+                      aria-label={`Delete expense ${expense.description}`}
+                    >
+                      <FiTrash2 />
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -141,7 +206,7 @@ const BookDetailPage = () => {
         </div>
       </div>
 
-      <AddExpenseModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onAddExpense={handleAddExpense} />
+      <AddExpenseModal isOpen={isModalOpen} initialType={modalInitialType} onClose={() => { setIsModalOpen(false); setModalInitialType(undefined); }} onAddExpense={handleAddExpense} />
     </div>
   );
 };

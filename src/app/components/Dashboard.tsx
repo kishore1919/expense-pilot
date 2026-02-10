@@ -1,12 +1,21 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { FiArrowRight, FiBookOpen, FiClock, FiPlus, FiSearch } from 'react-icons/fi';
+import { FiPlus, FiSearch, FiBook, FiTrendingUp, FiCalendar } from 'react-icons/fi';
 import { FaBook } from 'react-icons/fa';
-import { Button, TextField, InputAdornment, Box, Typography, Alert } from '@mui/material';
-import Card from './Card';
+import {
+  Button,
+  TextField,
+  InputAdornment,
+  Box,
+  Typography,
+  Alert,
+  Grid,
+  Card,
+  CardContent,
+  Skeleton,
+} from '@mui/material';
 import AddBookModal from './AddBookModal';
-import Loading from './Loading';
 import { collection, addDoc, getDocs, query, orderBy } from "firebase/firestore";
 import { useCurrency } from '../context/CurrencyContext';
 import { db } from '../firebase';
@@ -16,32 +25,83 @@ interface Book {
   id: string;
   name: string;
   createdAt?: string;
-  // Preserve the raw createdAt date for accurate metrics (month/year checks)
   createdAtRaw?: Date | null;
   net?: number;
 }
 
-const EmptyState = ({ setIsModalOpen }: { setIsModalOpen: (isOpen: boolean) => void }) => (
-  <div className="empty-state">
-    <div className="mb-5 flex h-20 w-20 items-center justify-center rounded-full bg-primary-container text-on-primary-container">
-      <FaBook className="text-3xl" />
-    </div>
-    <h2 className="section-title">No expense books yet</h2>
-    <p className="mt-2 max-w-sm text-on-surface-variant">
-      Create your first book to organize expenses by goal, trip, or monthly budget.
-    </p>
-    <Button 
-      variant="contained" 
-      onClick={() => setIsModalOpen(true)} 
-      startIcon={<FiPlus />}
-      sx={{ mt: 4, borderRadius: '100px' }}
-    >
-      Create Your First Book
-    </Button>
-  </div>
+// Skeleton loader for stats
+const StatSkeleton = () => (
+  <Card>
+    <CardContent sx={{ p: 3 }}>
+      <Skeleton variant="text" width="40%" height={20} />
+      <Skeleton variant="text" width="60%" height={40} />
+    </CardContent>
+  </Card>
 );
 
-const Dashboard = () => {
+// Skeleton loader for book cards
+const BookSkeleton = () => (
+  <Card>
+    <CardContent sx={{ p: 3 }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+        <Skeleton variant="rounded" width={48} height={48} />
+        <Box sx={{ flex: 1 }}>
+          <Skeleton variant="text" width="70%" height={24} />
+          <Skeleton variant="text" width="50%" height={16} />
+        </Box>
+      </Box>
+      <Skeleton variant="text" width="40%" height={28} />
+    </CardContent>
+  </Card>
+);
+
+const EmptyState = ({ onCreate }: { onCreate: () => void }) => (
+  <Card
+    sx={{
+      textAlign: 'center',
+      py: 8,
+      px: 3,
+      border: '2px dashed',
+      borderColor: 'divider',
+      bgcolor: 'transparent',
+    }}
+  >
+    <CardContent>
+      <Box
+        sx={{
+          width: 80,
+          height: 80,
+          borderRadius: 3,
+          bgcolor: 'primary.main',
+          color: 'primary.contrastText',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          mx: 'auto',
+          mb: 3,
+        }}
+      >
+        <FaBook size={32} />
+      </Box>
+      <Typography variant="h5" gutterBottom fontWeight={600}>
+        No expense books yet
+      </Typography>
+      <Typography variant="body1" color="text.secondary" sx={{ mb: 4, maxWidth: 400, mx: 'auto' }}>
+        Create your first book to organize expenses by goal, trip, or monthly budget.
+      </Typography>
+      <Button
+        variant="contained"
+        onClick={onCreate}
+        startIcon={<FiPlus />}
+        size="large"
+      >
+        Create Your First Book
+      </Button>
+    </CardContent>
+  </Card>
+);
+
+export default function Dashboard() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [books, setBooks] = useState<Book[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -64,15 +124,14 @@ const Dashboard = () => {
         const raw = doc.data().createdAt;
         const createdAtDate = raw?.toDate?.() ?? null;
 
-        // Fetch expenses for this book to compute net balance
         const expensesSnap = await getDocs(collection(db, `books/${doc.id}/expenses`));
         let cashIn = 0;
         let cashOut = 0;
 
         expensesSnap.docs.forEach((ed) => {
-          const data = ed.data() as any;
-          if (data.type === 'in') cashIn += data.amount ?? 0;
-          else cashOut += data.amount ?? 0;
+          const data = ed.data();
+          if (data.type === 'in') cashIn += (data.amount as number) ?? 0;
+          else cashOut += (data.amount as number) ?? 0;
         });
 
         return {
@@ -81,10 +140,10 @@ const Dashboard = () => {
           createdAt: createdAtDate ? createdAtDate.toLocaleDateString() : 'Recently',
           createdAtRaw: createdAtDate,
           net: cashIn - cashOut,
-        } as any;
+        } as Book;
       }));
 
-      setBooks(booksData as Book[]);
+      setBooks(booksData);
       setError(null);
     } catch (e) {
       console.error("Error fetching books:", e);
@@ -119,181 +178,269 @@ const Dashboard = () => {
     book.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  if (loading) {
-    return <Loading />;
-  }
+  const booksThisMonth = (() => {
+    const now = new Date();
+    return books.filter((book) =>
+      book.createdAtRaw instanceof Date &&
+      book.createdAtRaw.getMonth() === now.getMonth() &&
+      book.createdAtRaw.getFullYear() === now.getFullYear()
+    ).length;
+  })();
+
+  const totalNetWorth = books.reduce((sum, book) => sum + (book.net ?? 0), 0);
 
   return (
-    <div className="space-y-8">
-      <header className="surface-card p-6 md:p-8">
-        <div className="flex flex-col justify-between gap-5 md:flex-row md:items-center">
-          {/* <div>
-            <h1 className="page-title">Dashboard</h1>
-            <p className="page-subtitle">Your books, activity, and quick actions in one place.</p>
-          </div> */}
-          <Button 
-            variant="contained" 
-            onClick={() => setIsModalOpen(true)} 
+    <Box>
+      {/* Header */}
+      <Box sx={{ mb: 4 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 2 }}>
+          <Box>
+            <Typography variant="h4" fontWeight={600} gutterBottom>
+              Dashboard
+            </Typography>
+            <Typography variant="body1" color="text.secondary">
+              Welcome back! Here is your expense overview.
+            </Typography>
+          </Box>
+          <Button
+            variant="contained"
+            onClick={() => setIsModalOpen(true)}
             startIcon={<FiPlus />}
-            sx={{ borderRadius: '100px' }}
+            size="large"
           >
-            New Expense Book
+            New Book
           </Button>
-        </div>
-      </header>
+        </Box>
+      </Box>
 
       {error && (
-        <Alert severity="error" sx={{ borderRadius: '16px' }}>
+        <Alert severity="error" sx={{ mb: 3 }}>
           {error}
         </Alert>
       )}
 
-      <section className="grid grid-cols-1 gap-4 md:grid-cols-3">
-        <Card>
-          <p className="text-sm font-medium text-on-surface-variant">Total Books</p>
-          <p className="metric-value mt-2">{books.length}</p>
-        </Card>
-        <Card>
-          <p className="text-sm font-medium text-on-surface-variant">Books This Month</p>
-          <p className="metric-value mt-2">
-            {(() => {
-              const now = new Date();
-              return books.filter((book) =>
-                book.createdAtRaw instanceof Date &&
-                book.createdAtRaw.getMonth() === now.getMonth() &&
-                book.createdAtRaw.getFullYear() === now.getFullYear()
-              ).length;
-            })()}
-          </p>
-        </Card>
-        <Card>
-          <p className="text-sm font-medium text-on-surface-variant">Latest Update</p>
-          <p className="mt-2 flex items-center gap-2 text-sm font-semibold text-on-surface">
-            <FiClock className="text-primary" />
-            {books[0]?.createdAt ?? 'No activity yet'}
-          </p>
-        </Card>
-      </section>
-
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
-        <section className="xl:col-span-2">
-          <div className="mb-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <h2 className="section-title">Your Expense Books</h2>
-            {books.length > 0 && (
-              <TextField
-                placeholder="Search books..."
-                variant="outlined"
-                size="small"
-                value={searchQuery}
-                onChange={(event) => setSearchQuery(event.target.value)}
-                sx={{ 
-                  maxWidth: '320px', 
-                  width: '100%',
-                  '& .MuiOutlinedInput-root': { borderRadius: '100px' } 
-                }}
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <FiSearch />
-                    </InputAdornment>
-                  ),
-                }}
-              />
-            )}
-          </div>
-
-          {books.length > 0 ? (
-            filteredBooks.length > 0 ? (
-              <div className="space-y-3">
-                {filteredBooks.map((book) => (
-                  <button
-                    key={book.id}
-                    onClick={() => handleBookClick(book.id)}
-                    className="surface-card group flex w-full items-center justify-between p-4 text-left hover:bg-surface-container"
+      {/* Stats Cards */}
+      <Grid container spacing={3} sx={{ mb: 4 }}>
+        <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+          {loading ? (
+            <StatSkeleton />
+          ) : (
+            <Card sx={{ height: '100%' }}>
+              <CardContent sx={{ p: 3 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1 }}>
+                  <Box
+                    sx={{
+                      width: 32,
+                      height: 32,
+                      borderRadius: 2,
+                      bgcolor: 'primary.main',
+                      color: 'primary.contrastText',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
                   >
-                    <div className="flex items-center gap-4">
-                      <div className="flex h-12 w-12 items-center justify-center rounded-[18px] bg-primary-container text-xl text-on-primary-container">
-                        <FaBook />
-                      </div>
-                      <div>
-                        <p className="font-semibold text-on-surface">{book.name}</p>
-                        <p className="text-sm text-on-surface-variant">Created {book.createdAt}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-6">
-                      <div className={`font-semibold ${book.net && book.net >= 0 ? 'text-primary' : 'text-red-700'}`}>{book.net !== undefined ? formatCurrency(book.net) : ''}</div>
-                      <FiArrowRight className="text-on-surface-variant transition group-hover:translate-x-1 group-hover:text-primary" />
-                    </div>
-                  </button>
-                ))}
-              </div>
-            ) : (
-              <Card className="text-center">
-                <p className="text-on-surface-variant">No books match your search.</p>
-                <Button 
-                  onClick={() => setSearchQuery('')} 
-                  variant="outlined"
-                  sx={{ mt: 2, borderRadius: '100px' }}
+                    <FiBook size={16} />
+                  </Box>
+                  <Typography variant="body2" color="text.secondary" fontWeight={500}>
+                    Total Books
+                  </Typography>
+                </Box>
+                <Typography variant="h3" fontWeight={600}>
+                  {books.length}
+                </Typography>
+              </CardContent>
+            </Card>
+          )}
+        </Grid>
+        <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+          {loading ? (
+            <StatSkeleton />
+          ) : (
+            <Card sx={{ height: '100%' }}>
+              <CardContent sx={{ p: 3 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1 }}>
+                  <Box
+                    sx={{
+                      width: 32,
+                      height: 32,
+                      borderRadius: 2,
+                      bgcolor: 'success.main',
+                      color: 'success.contrastText',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <FiTrendingUp size={16} />
+                  </Box>
+                  <Typography variant="body2" color="text.secondary" fontWeight={500}>
+                    Net Worth
+                  </Typography>
+                </Box>
+                <Typography
+                  variant="h3"
+                  fontWeight={600}
+                  sx={{ color: totalNetWorth >= 0 ? 'success.main' : 'error.main' }}
                 >
+                  {formatCurrency(totalNetWorth)}
+                </Typography>
+              </CardContent>
+            </Card>
+          )}
+        </Grid>
+        <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+          {loading ? (
+            <StatSkeleton />
+          ) : (
+            <Card sx={{ height: '100%' }}>
+              <CardContent sx={{ p: 3 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1 }}>
+                  <Box
+                    sx={{
+                      width: 32,
+                      height: 32,
+                      borderRadius: 2,
+                      bgcolor: 'info.main',
+                      color: 'info.contrastText',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <FiCalendar size={16} />
+                  </Box>
+                  <Typography variant="body2" color="text.secondary" fontWeight={500}>
+                    Books This Month
+                  </Typography>
+                </Box>
+                <Typography variant="h3" fontWeight={600}>
+                  {booksThisMonth}
+                </Typography>
+              </CardContent>
+            </Card>
+          )}
+        </Grid>
+      </Grid>
+
+      {/* Books Section */}
+      <Box>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3, flexWrap: 'wrap', gap: 2 }}>
+          <Typography variant="h5" fontWeight={600}>
+            Your Expense Books
+          </Typography>
+          {books.length > 0 && (
+            <TextField
+              placeholder="Search books..."
+              size="small"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <FiSearch />
+                  </InputAdornment>
+                ),
+              }}
+              sx={{ width: { xs: '100%', sm: 280 } }}
+            />
+          )}
+        </Box>
+
+        {loading ? (
+          <Grid container spacing={2}>
+            {[1, 2, 3, 4].map((i) => (
+              <Grid size={{ xs: 12, md: 6 }} key={i}>
+                <BookSkeleton />
+              </Grid>
+            ))}
+          </Grid>
+        ) : books.length > 0 ? (
+          filteredBooks.length > 0 ? (
+            <Grid container spacing={2}>
+              {filteredBooks.map((book) => (
+                <Grid size={{ xs: 12, md: 6 }} key={book.id}>
+                  <Card
+                    sx={{
+                      cursor: 'pointer',
+                      transition: 'transform 200ms ease, box-shadow 200ms ease',
+                      '&:hover': {
+                        transform: 'translateY(-2px)',
+                        boxShadow: 3,
+                      },
+                    }}
+                    onClick={() => handleBookClick(book.id)}
+                  >
+                    <CardContent sx={{ p: 3 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+                        <Box
+                          sx={{
+                            width: 48,
+                            height: 48,
+                            borderRadius: 2,
+                            bgcolor: 'primary.main',
+                            color: 'primary.contrastText',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                          }}
+                        >
+                          <FaBook size={20} />
+                        </Box>
+                        <Box sx={{ flex: 1, minWidth: 0 }}>
+                          <Typography variant="h6" noWrap fontWeight={600}>
+                            {book.name}
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary">
+                            Created {book.createdAt}
+                          </Typography>
+                        </Box>
+                      </Box>
+                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <Typography
+                          variant="h6"
+                          fontWeight={600}
+                          sx={{
+                            color: book.net && book.net >= 0 ? 'success.main' : 'error.main',
+                          }}
+                        >
+                          {book.net !== undefined ? formatCurrency(book.net) : '—'}
+                        </Typography>
+                        <Typography
+                          variant="button"
+                          color="primary"
+                          sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}
+                        >
+                          View Details →
+                        </Typography>
+                      </Box>
+                    </CardContent>
+                  </Card>
+                </Grid>
+              ))}
+            </Grid>
+          ) : (
+            <Card sx={{ textAlign: 'center', py: 6 }}>
+              <CardContent>
+                <Typography color="text.secondary" gutterBottom>
+                  No books match your search.
+                </Typography>
+                <Button onClick={() => setSearchQuery('')} variant="outlined">
                   Clear search
                 </Button>
-              </Card>
-            )
-          ) : (
-            <EmptyState setIsModalOpen={setIsModalOpen} />
-          )}
-        </section>
+              </CardContent>
+            </Card>
+          )
+        ) : (
+          <EmptyState onCreate={() => setIsModalOpen(true)} />
+        )}
+      </Box>
 
-        <aside className="space-y-6">
-          {/* <Card>
-            <h3 className="section-title mb-4">Quick Actions</h3>
-            <div className="space-y-3">
-              <Button
-                fullWidth
-                variant="outlined"
-                disabled
-                startIcon={<FiPlus />}
-                sx={{ justifyContent: 'flex-start', borderRadius: '16px' }}
-              >
-                Add New Transaction
-              </Button>
-              <Button 
-                fullWidth
-                variant="outlined"
-                onClick={() => setIsModalOpen(true)} 
-                startIcon={<FiBookOpen />}
-                sx={{ justifyContent: 'flex-start', borderRadius: '16px' }}
-              >
-                Create New Expense Book
-              </Button>
-            </div>
-          </Card> */}
-          {/* <Card>
-            <h3 className="section-title mb-1">Recent Activity <span className="ml-2 inline-block rounded-full bg-surface-container-highest px-2 py-0.5 text-xs font-medium text-on-surface-variant">Example</span></h3>
-            <div className="text-xs text-on-surface-variant/70 mb-3">This section shows example entries. Replace with real activity data when available.</div>
-            <div className="space-y-4 text-sm">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-tertiary-container font-semibold text-on-tertiary-container">T</div>
-                <div>
-                  <p className="font-semibold text-on-surface">Added groceries expense</p>
-                  <p className="text-on-surface-variant">2 hours ago</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-secondary-container font-semibold text-on-secondary-container">B</div>
-                <div>
-                  <p className="font-semibold text-on-surface">Created a new expense book</p>
-                  <p className="text-on-surface-variant">Yesterday</p>
-                </div>
-              </div>
-            </div>
-          </Card> */}
-        </aside>
-      </div>
-
-      <AddBookModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onAddBook={handleAddBook} />
-    </div>
+      <AddBookModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onAddBook={handleAddBook}
+      />
+    </Box>
   );
-};
-
-export default Dashboard;
+}

@@ -1,106 +1,250 @@
 'use client';
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { FiGrid, FiBarChart2, FiBookOpen, FiSettings, FiShield } from 'react-icons/fi';
+import {
+  Drawer,
+  List,
+  ListItem,
+  ListItemButton,
+  ListItemIcon,
+  ListItemText,
+  Box,
+  Typography,
+  BottomNavigation,
+  BottomNavigationAction,
+  Paper,
+  IconButton,
+  Tooltip,
+} from '@mui/material';
+import {
+  FiGrid,
+  FiBookOpen,
+  FiSettings,
+  FiChevronLeft,
+  FiChevronRight,
+} from 'react-icons/fi';
 import { FaBook } from 'react-icons/fa';
+import { useSidebar } from '../context/SidebarContext';
 
-const Sidebar = () => {
+const menuItems = [
+  { icon: FiGrid, name: 'Dashboard', path: '/' },
+  { icon: FiBookOpen, name: 'My Books', path: '/books' },
+  { icon: FiSettings, name: 'Settings', path: '/settings' },
+];
+
+export default function Sidebar() {
   const pathname = usePathname();
+  const { isCollapsed, setIsCollapsed, sidebarWidth } = useSidebar();
+  
+  // Calculate active index based on pathname
+  const activeIndex = useMemo(() => {
+    return menuItems.findIndex(item => item.path === pathname);
+  }, [pathname]);
 
-  const menuItems = [
-    { icon: FiGrid, name: 'Dashboard', path: '/' },
-    // { icon: FiBarChart2, name: 'Analytics', path: '/analytics' },
-    { icon: FiBookOpen, name: 'My Books', path: '/books' },
-    { icon: FiSettings, name: 'Settings', path: '/settings' },
-  ];
+  const drawerContent = (
+    <>
+      {/* Logo Section */}
+      <Box
+        sx={{
+          p: isCollapsed ? 1.5 : 3,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: isCollapsed ? 'center' : 'flex-start',
+          gap: isCollapsed ? 0 : 2,
+          borderBottom: '1px solid',
+          borderColor: 'divider',
+          minHeight: 72,
+          transition: 'all 200ms ease',
+        }}
+      >
+        <Box
+          sx={{
+            width: 40,
+            height: 40,
+            borderRadius: 2,
+            bgcolor: 'primary.main',
+            color: 'primary.contrastText',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0,
+          }}
+        >
+          <FaBook size={20} />
+        </Box>
+        {!isCollapsed && (
+          <Typography
+            variant="h6"
+            fontWeight={600}
+            sx={{
+              overflow: 'hidden',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            Expense Pilot
+          </Typography>
+        )}
+      </Box>
+
+      {/* Navigation Items */}
+      <List sx={{ px: 1.5, py: 2, flex: 1 }}>
+        {menuItems.map((item) => {
+          const isActive = pathname === item.path;
+          return (
+            <ListItem key={item.name} disablePadding sx={{ mb: 0.5 }}>
+              <Tooltip
+                title={isCollapsed ? item.name : ''}
+                placement="right"
+                arrow
+              >
+                <ListItemButton
+                  component={Link}
+                  href={item.path}
+                  selected={isActive}
+                  sx={{
+                    borderRadius: 2,
+                    py: 1.5,
+                    px: isCollapsed ? 1.5 : 2,
+                    justifyContent: isCollapsed ? 'center' : 'flex-start',
+                    transition: 'all 150ms ease',
+                    '&.Mui-selected': {
+                      bgcolor: 'primary.main',
+                      color: 'primary.contrastText',
+                      '&:hover': {
+                        bgcolor: 'primary.dark',
+                      },
+                      '& .MuiListItemIcon-root': {
+                        color: 'primary.contrastText',
+                      },
+                    },
+                    '&:hover': {
+                      bgcolor: isActive ? 'primary.dark' : 'action.hover',
+                    },
+                  }}
+                >
+                  <ListItemIcon
+                    sx={{
+                      minWidth: isCollapsed ? 0 : 40,
+                      color: isActive ? 'inherit' : 'text.secondary',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <item.icon size={22} />
+                  </ListItemIcon>
+                  {!isCollapsed && (
+                    <ListItemText
+                      primary={item.name}
+                      primaryTypographyProps={{
+                        fontWeight: isActive ? 600 : 500,
+                      }}
+                    />
+                  )}
+                </ListItemButton>
+              </Tooltip>
+            </ListItem>
+          );
+        })}
+      </List>
+
+      {/* Collapse Toggle Button */}
+      <Box
+        sx={{
+          p: 1.5,
+          borderTop: '1px solid',
+          borderColor: 'divider',
+          display: 'flex',
+          justifyContent: isCollapsed ? 'center' : 'flex-end',
+        }}
+      >
+        <IconButton
+          onClick={() => setIsCollapsed(!isCollapsed)}
+          size="small"
+          sx={{
+            bgcolor: 'action.hover',
+            '&:hover': {
+              bgcolor: 'action.selected',
+            },
+          }}
+        >
+          {isCollapsed ? <FiChevronRight size={18} /> : <FiChevronLeft size={18} />}
+        </IconButton>
+      </Box>
+    </>
+  );
 
   return (
     <>
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-24 p-4 transition-all duration-300 ease-in-out hover:w-80 md:block group">
-        <div className="flex h-full flex-col rounded-[28px] bg-surface-container py-6 text-on-surface overflow-hidden shadow-lg border border-outline-variant/30">
-          <div className="mb-8 flex items-center h-12">
-            <div className="flex h-12 w-16 shrink-0 items-center justify-center">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary-container text-on-primary-container shadow-sm">
-                <FaBook className="text-xl" />
-              </div>
-            </div>
-            <div className="opacity-0 transition-opacity duration-300 group-hover:opacity-100 whitespace-nowrap ml-2">
-              <h1 className="text-lg font-bold tracking-tight text-on-surface">Expense Pilot</h1>
-            </div>
-          </div>
+      {/* Desktop Drawer */}
+      <Drawer
+        variant="permanent"
+        sx={{
+          display: { xs: 'none', md: 'block' },
+          position: 'fixed',
+          '& .MuiDrawer-paper': {
+            width: sidebarWidth,
+            boxSizing: 'border-box',
+            borderRight: '1px solid',
+            borderColor: 'divider',
+            bgcolor: 'background.paper',
+            transition: 'width 200ms ease',
+            overflowX: 'hidden',
+            display: 'flex',
+            flexDirection: 'column',
+          },
+        }}
+        open
+      >
+        {drawerContent}
+      </Drawer>
 
-          <nav className="flex-1 space-y-2 px-2">
-            {menuItems.map((item) => {
-              const isActive = pathname === item.path;
-              return (
-                <Link
-                  key={item.name}
-                  href={item.path}
-                  className={`flex items-center rounded-full h-12 transition-all duration-200 overflow-hidden ${
-                    isActive
-                      ? 'bg-secondary-container text-on-secondary-container shadow-md'
-                      : 'text-on-surface-variant hover:bg-surface-container-highest hover:text-on-surface'
-                  }`}
-                  aria-current={isActive ? 'page' : undefined}
-                >
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center ml-1">
-                    <item.icon className="text-2xl" />
-                  </div>
-                  <span className="opacity-0 transition-opacity duration-300 group-hover:opacity-100 whitespace-nowrap ml-4 font-medium">
-                    {item.name}
-                  </span>
-                </Link>
-              );
-            })}
-          </nav>
-
-          <div className="mt-auto px-4 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
-            <div className="rounded-[20px] bg-tertiary-container p-5 text-on-tertiary-container shadow-inner">
-              <p className="text-xs font-bold uppercase tracking-wider opacity-70">Pro Tip</p>
-              <p className="mt-2 text-sm leading-relaxed">
-                Separate your expenses into different books for cleaner analytics.
-              </p>
-            </div>
-          </div>
-        </div>
-      </aside>
-
-      <nav className="fixed bottom-0 left-0 right-0 z-40 border-t border-outline-variant bg-surface-container-low px-2 pb-4 pt-2 md:hidden">
-        <div className="grid grid-cols-4 gap-1">
-          {menuItems.map((item) => {
-            const isActive = pathname === item.path;
-            return (
-              <Link
-                key={item.name}
-                href={item.path}
-                className="group flex flex-col items-center justify-center gap-1 rounded-2xl py-2 transition-colors"
-                aria-current={isActive ? 'page' : undefined}
-              >
-                <div
-                  className={`flex h-8 w-14 items-center justify-center rounded-full transition-colors ${
-                    isActive
-                      ? 'bg-secondary-container text-on-secondary-container'
-                      : 'text-on-surface-variant group-hover:bg-surface-container-highest'
-                  }`}
-                >
-                  <item.icon className="text-lg" />
-                </div>
-                <span
-                  className={`text-[11px] font-medium ${
-                    isActive ? 'text-on-surface' : 'text-on-surface-variant'
-                  }`}
-                >
-                  {item.name}
-                </span>
-              </Link>
-            );
-          })}
-        </div>
-      </nav>
+      {/* Mobile Bottom Navigation */}
+      <Paper
+        sx={{
+          display: { xs: 'block', md: 'none' },
+          position: 'fixed',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          zIndex: 1000,
+          borderTop: '1px solid',
+          borderColor: 'divider',
+          // iOS Safe Area Support
+          pb: 'env(safe-area-inset-bottom, 0)',
+        }}
+        elevation={0}
+      >
+        <BottomNavigation
+          value={activeIndex}
+          showLabels
+          sx={{
+            bgcolor: 'background.paper',
+            height: 64,
+            '& .MuiBottomNavigationAction-root': {
+              minWidth: 'auto',
+              py: 1,
+              transition: 'all 150ms ease',
+              '&.Mui-selected': {
+                color: 'primary.main',
+                '& .MuiBottomNavigationAction-label': {
+                  fontWeight: 600,
+                },
+              },
+            },
+          }}
+        >
+          {menuItems.map((item) => (
+            <BottomNavigationAction
+              key={item.name}
+              label={item.name}
+              icon={<item.icon size={22} />}
+              component={Link}
+              href={item.path}
+            />
+          ))}
+        </BottomNavigation>
+      </Paper>
     </>
   );
-};
-
-export default Sidebar;
+}

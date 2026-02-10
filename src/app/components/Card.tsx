@@ -1,11 +1,17 @@
 import React from 'react';
+import { Card as MuiCard, CardContent } from '@mui/material';
 
-const Card = ({ children, className }: { children: React.ReactNode, className?: string }) => {
+interface CardProps {
+  children: React.ReactNode;
+  sx?: React.ComponentProps<typeof MuiCard>['sx'];
+}
+
+export default function Card({ children, sx = {} }: CardProps) {
   return (
-    <div className={`surface-card p-6 ${className ?? ''}`}>
-      {children}
-    </div>
+    <MuiCard sx={sx}>
+      <CardContent sx={{ p: 3, '&:last-child': { pb: 3 } }}>
+        {children}
+      </CardContent>
+    </MuiCard>
   );
-};
-
-export default Card;
+}

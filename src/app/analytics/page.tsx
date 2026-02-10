@@ -2,10 +2,17 @@
 
 import React, { useState, useEffect } from 'react';
 import { FiTrendingUp, FiTrendingDown, FiDollarSign, FiBook } from 'react-icons/fi';
-import { Typography, Box, Grid, LinearProgress, Divider } from '@mui/material';
+import {
+  Typography,
+  Box,
+  Grid,
+  LinearProgress,
+  Card,
+  CardContent,
+  Paper,
+} from '@mui/material';
 import { collection, getDocs } from "firebase/firestore";
 import { db } from '../firebase';
-import Card from '../components/Card';
 import Loading from '../components/Loading';
 import { useCurrency } from '../context/CurrencyContext';
 
@@ -16,7 +23,7 @@ interface Expense {
   createdAt?: string;
 }
 
-const AnalyticsPage = () => {
+export default function AnalyticsPage() {
   const [totalExpenses, setTotalExpenses] = useState(0);
   const [totalBooks, setTotalBooks] = useState(0);
   const [averageExpense, setAverageExpense] = useState(0);
@@ -69,26 +76,26 @@ const AnalyticsPage = () => {
       title: 'Total Expenses',
       value: formatCurrency(totalExpenses),
       icon: FiDollarSign,
-      color: 'primary'
+      color: 'primary.main',
     },
     {
       title: 'Total Books',
       value: totalBooks,
       icon: FiBook,
-      color: 'secondary'
+      color: 'secondary.main',
     },
     {
       title: 'Average Expense',
       value: formatCurrency(averageExpense),
       icon: FiTrendingUp,
-      color: 'success'
+      color: 'success.main',
     },
     {
       title: 'Highest Expense',
       value: formatCurrency(highestExpense),
       icon: FiTrendingDown,
-      color: 'error'
-    }
+      color: 'error.main',
+    },
   ];
 
   if (loading) {
@@ -96,34 +103,43 @@ const AnalyticsPage = () => {
   }
 
   return (
-    <div className="space-y-8">
-      <header className="surface-card p-6 md:p-8">
-        <h1 className="page-title">Analytics</h1>
-        <p className="page-subtitle">Track your financial insights and spending patterns.</p>
-      </header>
+    <Box sx={{ pb: 10 }}>
+      <Card sx={{ mb: 4 }}>
+        <CardContent>
+          <Typography variant="h4" gutterBottom>
+            Analytics
+          </Typography>
+          <Typography variant="body1" color="text.secondary">
+            Track your financial insights and spending patterns.
+          </Typography>
+        </CardContent>
+      </Card>
 
-      <Grid container spacing={2}>
+      <Grid container spacing={3} sx={{ mb: 4 }}>
         {stats.map((stat, index) => (
           <Grid size={{ xs: 12, sm: 6, xl: 3 }} key={index}>
             <Card>
-              <Box sx={{ mb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Box 
-                  sx={{ 
-                    display: 'flex', 
-                    h: 48, 
-                    w: 48, 
-                    alignItems: 'center', 
-                    justifyContent: 'center', 
-                    borderRadius: '12px',
-                    bgcolor: `${stat.color}.container`,
-                    color: `on-${stat.color}-container`
+              <CardContent>
+                <Box
+                  sx={{
+                    width: 48,
+                    height: 48,
+                    borderRadius: 2,
+                    bgcolor: stat.color,
+                    color: 'white',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    mb: 2,
                   }}
                 >
                   <stat.icon size={24} />
                 </Box>
-              </Box>
-              <Typography variant="body2" color="text.secondary">{stat.title}</Typography>
-              <Typography variant="h4" sx={{ mt: 1, fontWeight: '500' }}>{stat.value}</Typography>
+                <Typography variant="body2" color="text.secondary" gutterBottom>
+                  {stat.title}
+                </Typography>
+                <Typography variant="h4">{stat.value}</Typography>
+              </CardContent>
             </Card>
           </Grid>
         ))}
@@ -131,134 +147,164 @@ const AnalyticsPage = () => {
 
       <Grid container spacing={3}>
         <Grid size={{ xs: 12, xl: 6 }}>
-          <Card className="p-7">
-            <Typography variant="h5" sx={{ mb: 4, fontWeight: '500' }}>Expense Overview</Typography>
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <Box>
-                <Box sx={{ mb: 1, display: 'flex', justifyContent: 'space-between' }}>
-                  <Typography variant="body2" color="text.secondary">Spending Activity</Typography>
-                  <Typography variant="body2" fontWeight="600">{totalExpenses > 0 ? 'Active' : 'No Activity'}</Typography>
+          <Card>
+            <CardContent>
+              <Typography variant="h5" sx={{ mb: 4, fontWeight: '500' }}>
+                Expense Overview
+              </Typography>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <Box>
+                  <Box sx={{ mb: 1, display: 'flex', justifyContent: 'space-between' }}>
+                    <Typography variant="body2" color="text.secondary">
+                      Spending Activity
+                    </Typography>
+                    <Typography variant="body2" fontWeight="600">
+                      {totalExpenses > 0 ? 'Active' : 'No Activity'}
+                    </Typography>
+                  </Box>
+                  <LinearProgress
+                    variant="determinate"
+                    value={totalExpenses > 0 ? 65 : 0}
+                    sx={{ height: 12, borderRadius: 6 }}
+                  />
                 </Box>
-                <LinearProgress 
-                  variant="determinate" 
-                  value={totalExpenses > 0 ? 65 : 0} 
-                  sx={{ height: 12, borderRadius: 6 }} 
-                />
-              </Box>
 
-              <Box>
-                <Box sx={{ mb: 1, display: 'flex', justifyContent: 'space-between' }}>
-                  <Typography variant="body2" color="text.secondary">Book Organization</Typography>
-                  <Typography variant="body2" fontWeight="600">{totalBooks > 0 ? `${totalBooks} Books` : 'No Books'}</Typography>
+                <Box>
+                  <Box sx={{ mb: 1, display: 'flex', justifyContent: 'space-between' }}>
+                    <Typography variant="body2" color="text.secondary">
+                      Book Organization
+                    </Typography>
+                    <Typography variant="body2" fontWeight="600">
+                      {totalBooks > 0 ? `${totalBooks} Books` : 'No Books'}
+                    </Typography>
+                  </Box>
+                  <LinearProgress
+                    variant="determinate"
+                    value={totalBooks > 0 ? Math.min(totalBooks * 20, 100) : 0}
+                    color="secondary"
+                    sx={{ height: 12, borderRadius: 6 }}
+                  />
                 </Box>
-                <LinearProgress 
-                  variant="determinate" 
-                  value={totalBooks > 0 ? Math.min(totalBooks * 20, 100) : 0} 
-                  color="secondary"
-                  sx={{ height: 12, borderRadius: 6 }} 
-                />
-              </Box>
 
-              <Box>
-                <Box sx={{ mb: 1, display: 'flex', justifyContent: 'space-between' }}>
-                  <Typography variant="body2" color="text.secondary">Budget Health</Typography>
-                  <Typography variant="body2" fontWeight="600">{totalExpenses > 0 ? 'Good' : 'N/A'}</Typography>
+                <Box>
+                  <Box sx={{ mb: 1, display: 'flex', justifyContent: 'space-between' }}>
+                    <Typography variant="body2" color="text.secondary">
+                      Budget Health
+                    </Typography>
+                    <Typography variant="body2" fontWeight="600">
+                      {totalExpenses > 0 ? 'Good' : 'N/A'}
+                    </Typography>
+                  </Box>
+                  <LinearProgress
+                    variant="determinate"
+                    value={80}
+                    color="warning"
+                    sx={{ height: 12, borderRadius: 6 }}
+                  />
                 </Box>
-                <LinearProgress 
-                  variant="determinate" 
-                  value={80} 
-                  color="warning"
-                  sx={{ height: 12, borderRadius: 6 }} 
-                />
               </Box>
-            </Box>
+            </CardContent>
           </Card>
         </Grid>
 
         <Grid size={{ xs: 12, xl: 6 }}>
-          <Card className="p-7">
-            <Typography variant="h5" sx={{ mb: 4, fontWeight: '500' }}>Quick Insights</Typography>
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <Box 
-                sx={{ 
-                  display: 'flex', 
-                  gap: 3, 
-                  p: 3, 
-                  borderRadius: '16px', 
-                  border: '1px solid', 
-                  borderColor: 'divider',
-                  bgcolor: 'surface.container-lowest' 
-                }}
-              >
-                <Box sx={{ display: 'flex', h: 40, w: 40, flexShrink: 0, alignItems: 'center', justifyContent: 'center', borderRadius: '8px', bgcolor: 'primary.container', color: 'on-primary-container' }}>
-                  <FiTrendingUp />
-                </Box>
-                <Box>
-                  <Typography variant="subtitle2" fontWeight="600">Spending Trend</Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {totalExpenses > 0
-                      ? `You've recorded ${formatCurrency(totalExpenses)} in total expenses across ${totalBooks} book${totalBooks !== 1 ? 's' : ''}.`
-                      : 'Start adding expenses to see your spending trends.'
-                    }
-                  </Typography>
-                </Box>
-              </Box>
+          <Card>
+            <CardContent>
+              <Typography variant="h5" sx={{ mb: 4, fontWeight: '500' }}>
+                Quick Insights
+              </Typography>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <Paper sx={{ p: 3, display: 'flex', gap: 3 }}>
+                  <Box
+                    sx={{
+                      width: 40,
+                      height: 40,
+                      flexShrink: 0,
+                      borderRadius: 2,
+                      bgcolor: 'primary.main',
+                      color: 'white',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <FiTrendingUp />
+                  </Box>
+                  <Box>
+                    <Typography variant="subtitle2" fontWeight="600">
+                      Spending Trend
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      {totalExpenses > 0
+                        ? `You've recorded ${formatCurrency(totalExpenses)} in total expenses across ${totalBooks} book${totalBooks !== 1 ? 's' : ''}.`
+                        : 'Start adding expenses to see your spending trends.'
+                      }
+                    </Typography>
+                  </Box>
+                </Paper>
 
-              <Box 
-                sx={{ 
-                  display: 'flex', 
-                  gap: 3, 
-                  p: 3, 
-                  borderRadius: '16px', 
-                  border: '1px solid', 
-                  borderColor: 'divider',
-                  bgcolor: 'surface.container-lowest' 
-                }}
-              >
-                <Box sx={{ display: 'flex', h: 40, w: 40, flexShrink: 0, alignItems: 'center', justifyContent: 'center', borderRadius: '8px', bgcolor: 'secondary.container', color: 'on-secondary-container' }}>
-                  <FiDollarSign />
-                </Box>
-                <Box>
-                  <Typography variant="subtitle2" fontWeight="600">Average Transaction</Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {averageExpense > 0
-                      ? `Your average expense is ${formatCurrency(averageExpense)} per transaction.`
-                      : 'Add expenses to calculate your average transaction amount.'
-                    }
-                  </Typography>
-                </Box>
-              </Box>
+                <Paper sx={{ p: 3, display: 'flex', gap: 3 }}>
+                  <Box
+                    sx={{
+                      width: 40,
+                      height: 40,
+                      flexShrink: 0,
+                      borderRadius: 2,
+                      bgcolor: 'secondary.main',
+                      color: 'white',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <FiDollarSign />
+                  </Box>
+                  <Box>
+                    <Typography variant="subtitle2" fontWeight="600">
+                      Average Transaction
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      {averageExpense > 0
+                        ? `Your average expense is ${formatCurrency(averageExpense)} per transaction.`
+                        : 'Add expenses to calculate your average transaction amount.'
+                      }
+                    </Typography>
+                  </Box>
+                </Paper>
 
-              <Box 
-                sx={{ 
-                  display: 'flex', 
-                  gap: 3, 
-                  p: 3, 
-                  borderRadius: '16px', 
-                  border: '1px solid', 
-                  borderColor: 'divider',
-                  bgcolor: 'surface.container-lowest' 
-                }}
-              >
-                <Box sx={{ display: 'flex', h: 40, w: 40, flexShrink: 0, alignItems: 'center', justifyContent: 'center', borderRadius: '8px', bgcolor: 'error.container', color: 'on-error-container' }}>
-                  <FiTrendingDown />
-                </Box>
-                <Box>
-                  <Typography variant="subtitle2" fontWeight="600">Top Expense</Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {highestExpense > 0
-                      ? `Your highest single expense was ${formatCurrency(highestExpense)}.`
-                      : 'No expenses recorded yet.'
-                    }
-                  </Typography>
-                </Box>
+                <Paper sx={{ p: 3, display: 'flex', gap: 3 }}>
+                  <Box
+                    sx={{
+                      width: 40,
+                      height: 40,
+                      flexShrink: 0,
+                      borderRadius: 2,
+                      bgcolor: 'error.main',
+                      color: 'white',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <FiTrendingDown />
+                  </Box>
+                  <Box>
+                    <Typography variant="subtitle2" fontWeight="600">
+                      Top Expense
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      {highestExpense > 0
+                        ? `Your highest single expense was ${formatCurrency(highestExpense)}.`
+                        : 'No expenses recorded yet.'
+                      }
+                    </Typography>
+                  </Box>
+                </Paper>
               </Box>
-            </Box>
+            </CardContent>
           </Card>
         </Grid>
       </Grid>
-    </div>
+    </Box>
   );
-};
-
-export default AnalyticsPage;
+}

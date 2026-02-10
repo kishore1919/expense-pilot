@@ -3,7 +3,7 @@
 
 ## Overview
 
-A simple, intuitive, and accessible personal expense tracker application that allows users to manage their personal finances across multiple devices. The application features a minimal user interface and is built using Next.js and Firebase.
+A simple, intuitive, and accessible personal expense tracker application that allows users to manage their personal finances across multiple devices. The application features a modern minimalist user interface and is built using Next.js and Firebase.
 
 ## Features
 
@@ -11,43 +11,131 @@ A simple, intuitive, and accessible personal expense tracker application that al
     *   Users can add, view, edit, and delete their expenses organized in "Cashbooks".
     *   Expenses are stored and synchronized in real-time using Firestore.
 *   **Modern Personal Dashboard UI:**
-    *   A modern, intuitive dashboard inspired by the CashBook design but tailored for personal use.
-    *   Clean, simple, and easy to navigate sidebar and header.
-    *   Responsive design for web and mobile.
+    *   A modern, intuitive dashboard with clean design and clear visual hierarchy.
+    *   Responsive design for web and mobile with collapsible sidebar.
     *   An elegant empty state to guide new users.
-    *   Subtle visual polish, such as a noise texture background.
+    *   Skeleton loading states for better perceived performance.
 *   **My Books Page:**
     *   A dedicated page to view and manage all expense books.
 
 ## Design Enhancements
 
-### "Liquid Glass" UI Redesign
+### Modern Minimalist UI Redesign (v2.0)
 
-*   **Aesthetic:** Implemented a modern "liquid glass" style, characterized by its transparent, blurred, and glossy aesthetic.
-*   **Global Styles:** Updated the global stylesheet (`globals.css`) to include a new `glassmorphic` class and a linear gradient background, creating a frosted glass effect.
-*   **Layout:** Applied the glassmorphic effect to the main layout, sidebar, and cards for a cohesive look and feel.
+*   **Aesthetic:** Implemented a clean, modern minimalist style with subtle shadows and accent colors.
+*   **Color Palette:** 
+    *   Primary: Indigo (#6366F1) - friendly and trustworthy
+    *   Semantic colors for success, error, warning, and info states
+    *   WCAG AA compliant text colors
+*   **Global Styles:** Updated the global stylesheet (`globals.css`) with:
+    *   CSS custom properties for design tokens
+    *   Consistent spacing system (8px base)
+    *   Subtle shadow system for depth
+    *   Smooth transitions and animations
 *   **Component Styling:**
-    *   **Sidebar:** Updated to use the `glassmorphic` style with adjusted colors for text and icons to ensure legibility against the transparent background.
-    *   **Cards:** Re-styled to use the `glassmorphic` class, creating a floating, transparent look.
-    *   **Dashboard & Book Detail Page:** Text and element colors were updated for better contrast and legibility on the new background.
-    *   **Modals:** `AddBookModal` and `AddExpenseModal` were redesigned to match the liquid glass theme, including a blurred backdrop.
-*   **Color Palette:** Shifted to a lighter, more vibrant color palette that complements the transparent UI, with white and light-colored text for readability.
+    *   **Sidebar:** Redesigned with collapsible dock mode (72px collapsed, 260px expanded)
+    *   **Cards:** Clean design with subtle borders and hover effects
+    *   **Forms:** Improved input styling with better focus states
+    *   **Modals:** Cleaner dialog design with better spacing
+*   **Typography:** Refined scale using Manrope (body) and Space Grotesk (headings)
+*   **Mobile Experience:**
+    *   Bottom navigation with iOS safe area support
+    *   Larger touch targets (min 44px)
+    *   Responsive grid layouts
 
 ### Previous Enhancements
 
 *   **Card Component:**
-    *   Increased shadow for a more pronounced "lifted" effect.
-    *   Added a hover effect that subtly increases the shadow.
-    *   Slightly reduced the corner rounding for a more modern look.
+    *   Subtle shadow for depth
+    *   Hover effect with smooth transitions
+    *   Consistent border radius
 *   **Sidebar Component:**
-    *   Implemented a dynamic active state that highlights the current page.
-    *   Redesigned the logo and menu items for a more modern aesthetic.
-    *   Enhanced hover and active states with smooth transitions and scaling effects.
+    *   Collapsible dock mode for desktop
+    *   Dynamic active state highlighting
+    *   Tooltips when collapsed
+*   **Dark Mode Support:**
+    *   Full dark mode color palette
+    *   Smooth theme transitions
+    *   Persisted preference in localStorage
+
+## Technical Implementation
+
+### Design System
+
+```
+Colors:
+- Primary: #6366F1 (Indigo)
+- Success: #10B981 (Green)
+- Error: #EF4444 (Red)
+- Warning: #F59E0B (Amber)
+- Info: #3B82F6 (Blue)
+
+Spacing (8px base):
+- xs: 4px
+- sm: 8px
+- md: 16px
+- lg: 24px
+- xl: 32px
+- 2xl: 48px
+
+Border Radius:
+- sm: 4px
+- md: 8px
+- lg: 12px
+- full: 9999px
+
+Shadows:
+- sm: Subtle lift
+- md: Card default
+- lg: Elevated elements
+- xl: Modals
+```
+
+### File Structure
+
+```
+src/app/
+├── components/
+│   ├── AddBookModal.tsx
+│   ├── AddExpenseModal.tsx
+│   ├── Dashboard.tsx
+│   ├── Loading.tsx
+│   ├── MUIProvider.tsx
+│   └── Sidebar.tsx
+├── context/
+│   ├── CurrencyContext.tsx
+│   ├── SidebarContext.tsx
+│   └── ThemeContext.tsx
+├── book/[bookId]/
+│   └── page.tsx
+├── books/
+│   └── page.tsx
+├── login/
+│   └── page.tsx
+├── settings/
+│   └── page.tsx
+├── signup/
+│   └── page.tsx
+├── firebase.ts
+├── globals.css
+├── layout.tsx
+└── page.tsx
+```
 
 ## Current Plan
 
-### Phase 5: Final Touches
+### Phase 6: Polish & Optimization
 
-*   Review and refine the overall design and user experience.
-*   Ensure the application is fully responsive and accessible.
-*   Deploy the application to Firebase Hosting.
+*   Add toast notifications for user feedback
+*   Implement keyboard shortcuts (Ctrl+B for sidebar, Ctrl+N for new)
+*   Add data visualization styling for charts
+*   Performance optimization
+*   Final accessibility audit
+
+## Future Enhancements
+
+*   **Analytics Dashboard:** Charts and graphs for spending trends
+*   **Export Features:** CSV/PDF export of expenses
+*   **Recurring Expenses:** Automatic recurring entry creation
+*   **Budget Goals:** Set and track budget limits per book
+*   **Multi-currency Support:** Real-time currency conversion

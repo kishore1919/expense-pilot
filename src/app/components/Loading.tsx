@@ -3,19 +3,17 @@
 import React from 'react';
 import { CircularProgress, Box } from '@mui/material';
 
-const Loading = () => {
+export default function Loading() {
   return (
-    <Box className="flex min-h-[50vh] items-center justify-center">
-      <CircularProgress 
-        size={48} 
-        thickness={4} 
-        sx={{ 
-          color: 'primary.main',
-          animationDuration: '1.4s',
-        }} 
-      />
+    <Box
+      sx={{
+        display: 'flex',
+        minHeight: '50vh',
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+    >
+      <CircularProgress size={48} thickness={4} />
     </Box>
   );
-};
-
-export default Loading;
+}

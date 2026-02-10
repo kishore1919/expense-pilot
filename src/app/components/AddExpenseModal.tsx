@@ -1,23 +1,23 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { 
-  Dialog, 
-  DialogTitle, 
-  DialogContent, 
-  DialogActions, 
-  Button, 
-  TextField, 
-  IconButton, 
-  Typography, 
-  Box, 
+import {
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button,
+  TextField,
+  IconButton,
+  Typography,
+  Box,
   Alert,
-  ToggleButton, 
+  ToggleButton,
   ToggleButtonGroup,
   MenuItem,
-  Grid
+  Grid,
 } from '@mui/material';
-import { FiX } from 'react-icons/fi';
+import { FiX, FiTrendingUp, FiTrendingDown } from 'react-icons/fi';
 import { useCurrency } from '../context/CurrencyContext';
 import { collection, getDocs, query, orderBy } from "firebase/firestore";
 import { db } from '../firebase';
@@ -40,54 +40,50 @@ interface AddExpenseModalProps {
 
 const DEFAULT_CATEGORIES = ['Misc', 'Food', 'Medical', 'Travel'];
 
-const AddExpenseModal: React.FC<AddExpenseModalProps> = ({ isOpen, onClose, onAddExpense, initialType }) => {
+export default function AddExpenseModal({ isOpen, onClose, onAddExpense, initialType }: AddExpenseModalProps) {
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
   const [type, setType] = useState<'in' | 'out'>(initialType ?? 'out');
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
-  const [time, setTime] = useState(() => new Date().toISOString().slice(11,16));
   const [remarks, setRemarks] = useState('');
   const [category, setCategory] = useState('Misc');
   const [paymentMode, setPaymentMode] = useState('Online');
-  const [attachments, setAttachments] = useState<FileList | null>(null);
   const [availableCategories, setAvailableCategories] = useState<string[]>(DEFAULT_CATEGORIES);
   const [isSaving, setIsSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const { currency } = useCurrency();
 
   useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const q = query(collection(db, 'categories'), orderBy('name', 'asc'));
+        const querySnapshot = await getDocs(q);
+        const categoriesData = querySnapshot.docs.map(doc => doc.data().name as string);
+
+        if (categoriesData.length > 0) {
+          setAvailableCategories(categoriesData);
+          if (!categoriesData.includes(category)) {
+            setCategory(categoriesData[0]);
+          }
+        } else {
+          setAvailableCategories(DEFAULT_CATEGORIES);
+        }
+      } catch (err) {
+        console.error("Error fetching categories:", err);
+        setAvailableCategories(DEFAULT_CATEGORIES);
+      }
+    };
+
     if (isOpen) {
       fetchCategories();
     }
-  }, [isOpen]);
+  }, [isOpen, category]);
 
-  // Ensure the selected type matches the initialType when the modal opens
   useEffect(() => {
     if (isOpen) {
       setType(initialType ?? 'out');
     }
   }, [isOpen, initialType]);
-
-  const fetchCategories = async () => {
-    try {
-      const q = query(collection(db, 'categories'), orderBy('name', 'asc'));
-      const querySnapshot = await getDocs(q);
-      const categoriesData = querySnapshot.docs.map(doc => doc.data().name as string);
-      
-      if (categoriesData.length > 0) {
-        setAvailableCategories(categoriesData);
-        // If current category is not in the new list, reset it
-        if (!categoriesData.includes(category)) {
-          setCategory(categoriesData[0]);
-        }
-      } else {
-        setAvailableCategories(DEFAULT_CATEGORIES);
-      }
-    } catch (err) {
-      console.error("Error fetching categories:", err);
-      setAvailableCategories(DEFAULT_CATEGORIES);
-    }
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -97,11 +93,19 @@ const AddExpenseModal: React.FC<AddExpenseModalProps> = ({ isOpen, onClose, onAd
       return;
     }
 
-    const createdAt = new Date(`${date}T${time}`);
+    const createdAt = new Date(`${date}T00:00:00`);
 
     setIsSaving(true);
     try {
-      const payload: any = {
+      const payload: {
+        description: string;
+        amount: number;
+        type: 'in' | 'out';
+        createdAt: Date;
+        category: string;
+        paymentMode: string;
+        remarks?: string;
+      } = {
         description,
         amount: parseFloat(amount),
         type,
@@ -114,19 +118,12 @@ const AddExpenseModal: React.FC<AddExpenseModalProps> = ({ isOpen, onClose, onAd
         payload.remarks = remarks.trim();
       }
 
-      if (attachments && attachments.length > 0) {
-        payload.attachments = Array.from(attachments).map((f) => f.name);
-      }
-
-      console.debug('Prepared payload for save:', payload);
-
       await onAddExpense(payload);
-
-      // close on success
       handleClose();
-    } catch (err: any) {
+    } catch (err) {
       console.error('Save failed:', err);
-      setErrorMessage(err?.message || 'Failed to save entry. Please try again.');
+      const errorMessage = err instanceof Error ? err.message : 'Failed to save entry. Please try again.';
+      setErrorMessage(errorMessage);
     } finally {
       setIsSaving(false);
     }
@@ -137,11 +134,9 @@ const AddExpenseModal: React.FC<AddExpenseModalProps> = ({ isOpen, onClose, onAd
     setAmount('');
     setType('out');
     setDate(new Date().toISOString().slice(0, 10));
-    setTime(new Date().toISOString().slice(11,16));
     setRemarks('');
     setCategory('Misc');
     setPaymentMode('Online');
-    setAttachments(null);
     setErrorMessage(null);
     onClose();
   };
@@ -149,24 +144,36 @@ const AddExpenseModal: React.FC<AddExpenseModalProps> = ({ isOpen, onClose, onAd
   return (
     <Dialog 
       open={isOpen} 
-      onClose={handleClose}
-      fullWidth
+      onClose={handleClose} 
+      fullWidth 
       maxWidth="sm"
       PaperProps={{
-        sx: { borderRadius: '28px' }
+        sx: {
+          borderRadius: 3,
+        },
       }}
     >
-      <DialogTitle sx={{ m: 0, p: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Typography variant="h5" component="div" fontWeight="500">
-          Add Entry
-        </Typography>
-        <IconButton onClick={handleClose} size="large" sx={{ color: 'text.secondary' }}>
-          <FiX />
-        </IconButton>
-      </DialogTitle>
-      
       <form onSubmit={handleSubmit}>
-        <DialogContent sx={{ p: 3, pt: 0 }}>
+        <DialogTitle sx={{ p: 3, pb: 0 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <Typography variant="h5" fontWeight={600}>
+              Add Entry
+            </Typography>
+            <IconButton 
+              onClick={handleClose} 
+              sx={{ 
+                color: 'text.secondary',
+                mt: -0.5,
+                mr: -1,
+              }}
+            >
+              <FiX />
+            </IconButton>
+          </Box>
+        </DialogTitle>
+
+        <DialogContent sx={{ p: 3, pt: 3 }}>
+          {/* Type Toggle */}
           <Box sx={{ mb: 3 }}>
             <ToggleButtonGroup
               value={type}
@@ -174,29 +181,39 @@ const AddExpenseModal: React.FC<AddExpenseModalProps> = ({ isOpen, onClose, onAd
               onChange={(_, newType) => newType && setType(newType)}
               fullWidth
               sx={{
-                '& .MuiToggleButton-root': {
-                  borderRadius: '100px',
-                  py: 1.5,
-                  px: 3,
+                gap: 1,
+                '& .MuiToggleButtonGroup-grouped': {
+                  borderRadius: 2,
                   border: '1px solid',
                   borderColor: 'divider',
+                  py: 1.5,
                   '&.Mui-selected': {
-                    backgroundColor: type === 'in' ? 'primary.container' : 'error.container',
-                    color: type === 'in' ? 'on-primary-container' : 'on-error-container',
-                    border: 'none',
+                    bgcolor: type === 'in' ? 'success.main' : 'error.main',
+                    color: 'white',
+                    borderColor: type === 'in' ? 'success.main' : 'error.main',
                     '&:hover': {
-                      backgroundColor: type === 'in' ? 'primary.container' : 'error.container',
-                      opacity: 0.9,
-                    }
-                  }
-                }
+                      bgcolor: type === 'in' ? 'success.dark' : 'error.dark',
+                    },
+                  },
+                },
               }}
             >
-              <ToggleButton value="in" sx={{ mr: 1 }}>Cash In</ToggleButton>
-              <ToggleButton value="out" sx={{ ml: 1 }}>Cash Out</ToggleButton>
+              <ToggleButton value="in">
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <FiTrendingUp size={18} />
+                  Cash In
+                </Box>
+              </ToggleButton>
+              <ToggleButton value="out">
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <FiTrendingDown size={18} />
+                  Cash Out
+                </Box>
+              </ToggleButton>
             </ToggleButtonGroup>
           </Box>
 
+          {/* Description */}
           <TextField
             id="entry-description"
             label="Description"
@@ -208,8 +225,21 @@ const AddExpenseModal: React.FC<AddExpenseModalProps> = ({ isOpen, onClose, onAd
             sx={{ mb: 3 }}
           />
 
+          {/* Amount and Date */}
           <Grid container spacing={2} sx={{ mb: 3 }}>
-            <Grid size={6}>
+            <Grid size={{ xs: 7 }}>
+              <TextField
+                id="entry-amount"
+                label={`Amount (${currency})`}
+                type="number"
+                fullWidth
+                required
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                placeholder="0.00"
+              />
+            </Grid>
+            <Grid size={{ xs: 5 }}>
               <TextField
                 id="entry-date"
                 label="Date"
@@ -220,51 +250,11 @@ const AddExpenseModal: React.FC<AddExpenseModalProps> = ({ isOpen, onClose, onAd
                 InputLabelProps={{ shrink: true }}
               />
             </Grid>
-            <Grid size={6}>
-              <TextField
-                id="entry-time"
-                label="Time"
-                type="time"
-                fullWidth
-                value={time}
-                onChange={(e) => setTime(e.target.value)}
-                InputLabelProps={{ shrink: true }}
-              />
-            </Grid>
           </Grid>
 
-          {errorMessage && (
-            <Box sx={{ mb: 2 }}>
-              <Alert severity="error">{errorMessage}</Alert>
-            </Box>
-          )}
-
-          <TextField
-            id="entry-amount"
-            label={`Amount (${currency})`}
-            type="number"
-            fullWidth
-            required
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            placeholder={`0.00 ${currency}`}
-            sx={{ mb: 3 }}
-          />
-
-          <TextField
-            id="entry-remarks"
-            label="Remarks"
-            fullWidth
-            multiline
-            rows={3}
-            value={remarks}
-            onChange={(e) => setRemarks(e.target.value)}
-            placeholder="e.g. Enter Details (Name, Bill No, Item Name, Quantity etc)"
-            sx={{ mb: 3 }}
-          />
-
+          {/* Category and Payment Mode */}
           <Grid container spacing={2} sx={{ mb: 3 }}>
-            <Grid size={6}>
+            <Grid size={{ xs: 6 }}>
               <TextField
                 id="entry-category"
                 select
@@ -280,7 +270,7 @@ const AddExpenseModal: React.FC<AddExpenseModalProps> = ({ isOpen, onClose, onAd
                 ))}
               </TextField>
             </Grid>
-            <Grid size={6}>
+            <Grid size={{ xs: 6 }}>
               <TextField
                 id="entry-paymentMode"
                 select
@@ -296,36 +286,39 @@ const AddExpenseModal: React.FC<AddExpenseModalProps> = ({ isOpen, onClose, onAd
             </Grid>
           </Grid>
 
-          {/* <Box>
-            <label htmlFor="entry-attachments">
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 1, px: 1 }}>
-                Attach Bills
-              </Typography>
-            </label>
-            <input 
-              id="entry-attachments"
-              type="file" 
-              multiple 
-              onChange={(e) => setAttachments(e.target.files)} 
-              style={{ display: 'block', marginBottom: '8px', fontSize: '14px' }}
-            />
-            <Typography variant="caption" color="text.secondary">
-              Attach up to 4 images or PDF files
-            </Typography>
-          </Box> */}
+          {/* Remarks */}
+          <TextField
+            id="entry-remarks"
+            label="Remarks (optional)"
+            fullWidth
+            multiline
+            rows={2}
+            value={remarks}
+            onChange={(e) => setRemarks(e.target.value)}
+            placeholder="Add any additional details..."
+            sx={{ mb: 2 }}
+          />
+
+          {errorMessage && (
+            <Alert severity="error" sx={{ mt: 1 }}>{errorMessage}</Alert>
+          )}
         </DialogContent>
 
         <DialogActions sx={{ p: 3, pt: 0 }}>
           <Button onClick={handleClose} color="inherit" disabled={isSaving}>
             Cancel
           </Button>
-          <Button type="submit" variant="contained" color="primary" disableElevation disabled={isSaving}>
-            {isSaving ? 'Saving...' : 'Save'}
+          <Button 
+            type="submit" 
+            variant="contained" 
+            disableElevation 
+            disabled={isSaving || !description || !amount}
+            color={type === 'in' ? 'success' : 'error'}
+          >
+            {isSaving ? 'Saving...' : 'Save Entry'}
           </Button>
         </DialogActions>
       </form>
     </Dialog>
   );
-};
-
-export default AddExpenseModal;
+}

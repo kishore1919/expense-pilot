@@ -1,21 +1,64 @@
 'use client';
 
-import React, { useState } from 'react';
-import { FiUser, FiMail, FiMoon, FiBell, FiShield, FiGlobe, FiTrash2 } from 'react-icons/fi';
-import { Typography, Box, Switch, Select, MenuItem, FormControl, InputLabel, Divider, Chip, TextField, Button, Paper, List, ListItem, ListItemText, IconButton, CircularProgress, Alert } from '@mui/material';
+import React, { useState, useEffect } from 'react';
+import {
+  Card,
+  CardContent,
+  Typography,
+  Box,
+  Switch,
+  Select,
+  MenuItem,
+  FormControl,
+  Divider,
+  Chip,
+  TextField,
+  Button,
+  Paper,
+  List,
+  ListItem,
+  ListItemText,
+  IconButton,
+  Alert,
+  Grid,
+  Skeleton,
+} from '@mui/material';
+import {
+  FiUser,
+  FiMail,
+  FiMoon,
+  FiBell,
+  FiShield,
+  FiGlobe,
+  FiTrash2,
+  FiTag,
+} from 'react-icons/fi';
 import { collection, getDocs, addDoc, deleteDoc, doc, query, orderBy } from 'firebase/firestore';
 import { db } from '../firebase';
-import Card from '../components/Card';
 import { useCurrency } from '../context/CurrencyContext';
 import { useTheme } from '../context/ThemeContext';
 
-const CategoryManager: React.FC = () => {
-  const [categories, setCategories] = React.useState<Array<{ id: string; name: string }>>([]);
-  const [newCategory, setNewCategory] = React.useState('');
-  const [loadingCats, setLoadingCats] = React.useState(true);
-  const [error, setError] = React.useState<string | null>(null);
+// Skeleton loader
+const SettingSkeleton = () => (
+  <Card>
+    <CardContent sx={{ p: 3 }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
+        <Skeleton variant="circular" width={24} height={24} />
+        <Skeleton variant="text" width="40%" height={28} />
+      </Box>
+      <Skeleton variant="text" width="100%" height={20} />
+      <Skeleton variant="text" width="80%" height={20} />
+    </CardContent>
+  </Card>
+);
 
-  React.useEffect(() => {
+const CategoryManager: React.FC = () => {
+  const [categories, setCategories] = useState<Array<{ id: string; name: string }>>([]);
+  const [newCategory, setNewCategory] = useState('');
+  const [loadingCats, setLoadingCats] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
     const fetchCategories = async () => {
       try {
         setLoadingCats(true);
@@ -61,47 +104,104 @@ const CategoryManager: React.FC = () => {
   };
 
   return (
-    <div>
+    <Box>
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
-      <form onSubmit={handleAddCategory} style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
-        <TextField value={newCategory} onChange={(e) => setNewCategory(e.target.value)} size="small" label="New category name" sx={{ flex: 1 }} />
-        <Button type="submit" variant="contained">Add</Button>
-      </form>
+      
+      <Box 
+        component="form" 
+        onSubmit={handleAddCategory} 
+        sx={{ display: 'flex', gap: 1.5, mb: 3 }}
+      >
+        <TextField
+          value={newCategory}
+          onChange={(e) => setNewCategory(e.target.value)}
+          size="small"
+          placeholder="New category name"
+          sx={{ flex: 1 }}
+        />
+        <Button type="submit" variant="contained" disabled={!newCategory.trim()}>
+          Add
+        </Button>
+      </Box>
 
       {loadingCats ? (
-        <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}><CircularProgress size={24} /></Box>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+          {[1, 2, 3].map((i) => (
+            <Skeleton key={i} variant="rounded" height={48} />
+          ))}
+        </Box>
+      ) : categories.length === 0 ? (
+        <Paper variant="outlined" sx={{ p: 3, textAlign: 'center' }}>
+          <Typography color="text.secondary">
+            No categories yet. Add your first one above.
+          </Typography>
+        </Paper>
       ) : (
-        <Paper sx={{ borderRadius: 2, overflow: 'hidden' }}>
-          {categories.length === 0 ? (
-            <ListItem><ListItemText secondary="No categories yet." /></ListItem>
-          ) : (
-            <List>
-              {categories.map((c) => (
-                <ListItem key={c.id} secondaryAction={<IconButton edge="end" onClick={() => handleDeleteCategory(c.id)}><FiTrash2 /></IconButton>}>
-                  <ListItemText primary={c.name} />
+        <Paper variant="outlined">
+          <List disablePadding>
+            {categories.map((c, index) => (
+              <React.Fragment key={c.id}>
+                {index > 0 && <Divider />}
+                <ListItem
+                  secondaryAction={
+                    <IconButton 
+                      edge="end" 
+                      onClick={() => handleDeleteCategory(c.id)}
+                      sx={{
+                        color: 'text.secondary',
+                        '&:hover': {
+                          color: 'error.main',
+                          bgcolor: 'error.bg',
+                        },
+                      }}
+                    >
+                      <FiTrash2 size={18} />
+                    </IconButton>
+                  }
+                >
+                  <Box
+                    sx={{
+                      width: 8,
+                      height: 8,
+                      borderRadius: '50%',
+                      bgcolor: 'primary.main',
+                      mr: 2,
+                    }}
+                  />
+                  <ListItemText 
+                    primary={c.name}
+                    primaryTypographyProps={{ fontWeight: 500 }}
+                  />
                 </ListItem>
-              ))}
-            </List>
-          )}
+              </React.Fragment>
+            ))}
+          </List>
         </Paper>
       )}
-    </div>
+    </Box>
   );
 };
 
-const SettingsPage = () => {
-  const [notifications, setNotifications] = useState(true);
+function getInitialNotificationsState(): boolean {
+  if (typeof window === 'undefined') return true;
+  try {
+    const savedNotifications = localStorage.getItem('pet_notifications');
+    return savedNotifications !== null ? savedNotifications === 'true' : true;
+  } catch {
+    return true;
+  }
+}
+
+export default function SettingsPage() {
+  const [notifications, setNotifications] = useState(getInitialNotificationsState);
+  const [loading, setLoading] = useState(true);
   const { currency, setCurrency, currencyOptions } = useCurrency();
   const { isDarkMode, toggleDarkMode } = useTheme();
 
-  React.useEffect(() => {
-    // Initialize toggles from localStorage after mount to avoid SSR/hydration issues
-    try {
-      const savedNotifications = localStorage.getItem('pet_notifications');
-      if (savedNotifications !== null) setNotifications(savedNotifications === 'true');
-    } catch {
-      // ignore localStorage errors
-    }
+  useEffect(() => {
+    // Simulate loading
+    const timer = setTimeout(() => setLoading(false), 500);
+    return () => clearTimeout(timer);
   }, []);
 
   const toggleNotifications = () => {
@@ -112,121 +212,189 @@ const SettingsPage = () => {
     });
   };
 
+  const settingsItems = [
+    {
+      icon: <FiMail size={20} />,
+      label: 'Email',
+      value: 'Anonymous',
+    },
+    {
+      icon: <FiShield size={20} />,
+      label: 'Account Status',
+      value: <Chip label="Active" color="success" size="small" />,
+    },
+    {
+      icon: <FiUser size={20} />,
+      label: 'User ID',
+      value: <Typography variant="body2" color="text.secondary">Anonymous</Typography>,
+    },
+  ];
+
   return (
-    <div className="space-y-8">
-      <header className="surface-card p-6 md:p-8">
-        <h1 className="page-title">Settings</h1>
-        <p className="page-subtitle">Manage your account and preferences.</p>
-      </header>
+    <Box>
+      {/* Header */}
+      <Box sx={{ mb: 4 }}>
+        <Typography variant="h4" fontWeight={600} gutterBottom>
+          Settings
+        </Typography>
+        <Typography variant="body1" color="text.secondary">
+          Manage your account and preferences.
+        </Typography>
+      </Box>
 
-      <div className="space-y-8">
-        <Card className="p-7">
-          <Typography variant="h5" sx={{ mb: 4, display: 'flex', alignItems: 'center', gap: 2, fontWeight: 500 }}>
-            <FiUser color="var(--md-sys-color-primary)" /> Account Information
-          </Typography>
-          
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                <FiMail color="var(--md-sys-color-outline)" />
-                <Typography color="text.secondary">Email</Typography>
-              </Box>
-              <Typography fontWeight="500">Anonymous</Typography>
-            </Box>
-            
-            <Divider />
-
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                <FiShield color="var(--md-sys-color-outline)" />
-                <Typography color="text.secondary">Account Status</Typography>
-              </Box>
-              <Chip label="Active" color="success" size="small" sx={{ fontWeight: 600 }} />
-            </Box>
-
-            <Divider />
-
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                <FiUser color="var(--md-sys-color-outline)" />
-                <Typography color="text.secondary">User ID</Typography>
-              </Box>
-              <Typography variant="body2" color="text.secondary">Anonymous</Typography>
-            </Box>
-          </Box>
-        </Card>
-
-        <Card className="p-7">
-          <Typography variant="h5" sx={{ mb: 4, display: 'flex', alignItems: 'center', gap: 2, fontWeight: 500 }}>
-            <FiBell color="var(--md-sys-color-primary)" /> Preferences
-          </Typography>
-
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                <FiBell size={24} color="var(--md-sys-color-outline)" />
-                <Box>
-                  <Typography fontWeight="500">Notifications</Typography>
-                  <Typography variant="body2" color="text.secondary">Receive updates about your expenses</Typography>
+      <Grid container spacing={3}>
+        {/* Account Information */}
+        <Grid size={{ xs: 12, md: 6 }}>
+          {loading ? (
+            <SettingSkeleton />
+          ) : (
+            <Card sx={{ height: '100%' }}>
+              <CardContent sx={{ p: 3 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
+                  <Box sx={{ color: 'primary.main' }}>
+                    <FiUser size={24} />
+                  </Box>
+                  <Typography variant="h5" fontWeight={600}>
+                    Account Information
+                  </Typography>
                 </Box>
-              </Box>
-              <Switch checked={notifications} onChange={toggleNotifications} color="primary" />
-            </Box>
 
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                <FiMoon size={24} color="var(--md-sys-color-outline)" />
-                <Box>
-                  <Typography fontWeight="500">Dark Mode</Typography>
-                  <Typography variant="body2" color="text.secondary">Switch between light and dark themes</Typography>
-                </Box>
-              </Box>
-              <Switch checked={isDarkMode} onChange={toggleDarkMode} color="primary" />
-            </Box>
-
-            <Divider />
-
-            <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, justifyContent: 'space-between', alignItems: { xs: 'flex-start', md: 'center' }, gap: 3 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                <FiGlobe size={24} color="var(--md-sys-color-outline)" />
-                <Box>
-                  <Typography fontWeight="500">Currency</Typography>
-                  <Typography variant="body2" color="text.secondary">Used globally across all totals and expenses</Typography>
-                </Box>
-              </Box>
-              <FormControl sx={{ minWidth: 200, width: { xs: '100%', md: 'auto' } }}>
-                <Select
-                  value={currency}
-                  onChange={(event) => setCurrency(event.target.value as string)}
-                  size="small"
-                  sx={{ borderRadius: '12px' }}
-                >
-                  {currencyOptions.map((option) => (
-                    <MenuItem key={option.code} value={option.code}>
-                      {option.label}
-                    </MenuItem>
+                <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+                  {settingsItems.map((item, index) => (
+                    <React.Fragment key={item.label}>
+                      {index > 0 && <Divider sx={{ my: 2 }} />}
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', py: 0.5 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                          <Box sx={{ color: 'text.secondary' }}>{item.icon}</Box>
+                          <Typography color="text.secondary">{item.label}</Typography>
+                        </Box>
+                        <Box>
+                          {typeof item.value === 'string' ? (
+                            <Typography fontWeight={500}>{item.value}</Typography>
+                          ) : (
+                            item.value
+                          )}
+                        </Box>
+                      </Box>
+                    </React.Fragment>
                   ))}
-                </Select>
-              </FormControl>
-            </Box>
-          </Box>
-        </Card>
+                </Box>
+              </CardContent>
+            </Card>
+          )}
+        </Grid>
 
-        <Box sx={{ pb: 4, textAlign: 'center' }}>
-          <Typography variant="body2" color="text.secondary">Personal Expense Tracker v0.1.0</Typography>
-          <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>Built with Next.js and Firebase</Typography>
-        </Box>
+        {/* Preferences */}
+        <Grid size={{ xs: 12, md: 6 }}>
+          {loading ? (
+            <SettingSkeleton />
+          ) : (
+            <Card sx={{ height: '100%' }}>
+              <CardContent sx={{ p: 3 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
+                  <Box sx={{ color: 'primary.main' }}>
+                    <FiBell size={24} />
+                  </Box>
+                  <Typography variant="h5" fontWeight={600}>
+                    Preferences
+                  </Typography>
+                </Box>
 
-        <Card className="p-7">
-          <Typography variant="h5" sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 2, fontWeight: 500 }}>
-            Categories
-          </Typography>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                  {/* Notifications */}
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                      <Box sx={{ color: 'text.secondary' }}><FiBell size={20} /></Box>
+                      <Box>
+                        <Typography fontWeight={500}>Notifications</Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          Receive updates about your expenses
+                        </Typography>
+                      </Box>
+                    </Box>
+                    <Switch checked={notifications} onChange={toggleNotifications} color="primary" />
+                  </Box>
 
-          <CategoryManager />
-        </Card>
-      </div>
-    </div>
+                  <Divider />
+
+                  {/* Dark Mode */}
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                      <Box sx={{ color: 'text.secondary' }}><FiMoon size={20} /></Box>
+                      <Box>
+                        <Typography fontWeight={500}>Dark Mode</Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          Switch between light and dark themes
+                        </Typography>
+                      </Box>
+                    </Box>
+                    <Switch checked={isDarkMode} onChange={toggleDarkMode} color="primary" />
+                  </Box>
+
+                  <Divider />
+
+                  {/* Currency */}
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                      <Box sx={{ color: 'text.secondary' }}><FiGlobe size={20} /></Box>
+                      <Box>
+                        <Typography fontWeight={500}>Currency</Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          Used globally across all totals
+                        </Typography>
+                      </Box>
+                    </Box>
+                    <FormControl sx={{ minWidth: 120 }}>
+                      <Select
+                        value={currency}
+                        onChange={(e) => setCurrency(e.target.value as string)}
+                        size="small"
+                      >
+                        {currencyOptions.map((option) => (
+                          <MenuItem key={option.code} value={option.code}>
+                            {option.code}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                  </Box>
+                </Box>
+              </CardContent>
+            </Card>
+          )}
+        </Grid>
+
+        {/* Categories */}
+        <Grid size={{ xs: 12 }}>
+          {loading ? (
+            <SettingSkeleton />
+          ) : (
+            <Card>
+              <CardContent sx={{ p: 3 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
+                  <Box sx={{ color: 'primary.main' }}>
+                    <FiTag size={24} />
+                  </Box>
+                  <Typography variant="h5" fontWeight={600}>
+                    Categories
+                  </Typography>
+                </Box>
+                <CategoryManager />
+              </CardContent>
+            </Card>
+          )}
+        </Grid>
+      </Grid>
+
+      {/* Footer */}
+      <Box sx={{ mt: 6, textAlign: 'center' }}>
+        <Typography variant="body2" color="text.secondary">
+          Personal Expense Tracker v0.1.0
+        </Typography>
+        <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.5 }}>
+          Built with Next.js and Firebase
+        </Typography>
+      </Box>
+    </Box>
   );
-};
-
-export default SettingsPage;
+}

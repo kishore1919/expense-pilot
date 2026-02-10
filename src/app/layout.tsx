@@ -4,9 +4,11 @@ import './globals.css';
 import React from 'react';
 import { usePathname } from 'next/navigation';
 import { Manrope, Space_Grotesk } from 'next/font/google';
+import { Box } from '@mui/material';
 import Sidebar from './components/Sidebar';
 import { CurrencyProvider } from './context/CurrencyContext';
 import { ThemeProvider } from './context/ThemeContext';
+import { SidebarProvider, useSidebar } from './context/SidebarContext';
 import MUIProvider from './components/MUIProvider';
 
 const bodyFont = Manrope({
@@ -21,29 +23,69 @@ const headingFont = Space_Grotesk({
   weight: ['500', '600', '700'],
 });
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const isAuthPage = pathname === '/login' || pathname === '/signup';
+  const { sidebarWidth } = useSidebar();
 
   return (
-    <html lang="en">
+    <>
+      {!isAuthPage && <Sidebar />}
+      <Box
+        component="main"
+        sx={{
+          flex: 1,
+          display: 'flex',
+          flexDirection: 'column',
+          minHeight: '100vh',
+          ml: isAuthPage ? 0 : { xs: 0, md: `${sidebarWidth}px` },
+          transition: 'margin-left 200ms ease',
+          pb: { xs: '80px', md: 0 },
+        }}
+      >
+        <Box
+          sx={{
+            flex: 1,
+            display: 'flex',
+            justifyContent: isAuthPage ? 'center' : 'flex-start',
+            alignItems: isAuthPage ? 'center' : 'flex-start',
+            p: isAuthPage ? 3 : { xs: 2, sm: 3, md: 4 },
+          }}
+        >
+          <Box
+            sx={{
+              width: '100%',
+              maxWidth: isAuthPage ? '420px' : '1200px',
+              mx: 'auto',
+            }}
+          >
+            {children}
+          </Box>
+        </Box>
+      </Box>
+    </>
+  );
+}
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang="en" suppressHydrationWarning>
       <body className={`${bodyFont.variable} ${headingFont.variable}`}>
         <ThemeProvider>
           <MUIProvider>
             <CurrencyProvider>
-              <div className="min-h-screen">
-                {!isAuthPage && <Sidebar />}
-                              <main
-                                className={
-                                  isAuthPage
-                                    ? 'flex min-h-screen items-center justify-center px-4 py-12'
-                                    : 'min-h-screen px-4 pb-24 pt-6 md:ml-24 md:px-10 md:pb-10 md:pt-8'
-                                }
-                              >                  <div className={isAuthPage ? 'w-full max-w-md fade-in' : 'mx-auto w-full max-w-6xl fade-in'}>
-                    {children}
-                  </div>
-                </main>
-              </div>
+              <SidebarProvider>
+                <Box
+                  sx={{
+                    display: 'flex',
+                    minHeight: '100vh',
+                    backgroundColor: 'background.default',
+                    transition: 'background-color 200ms ease',
+                  }}
+                >
+                  <AppLayout>{children}</AppLayout>
+                </Box>
+              </SidebarProvider>
             </CurrencyProvider>
           </MUIProvider>
         </ThemeProvider>

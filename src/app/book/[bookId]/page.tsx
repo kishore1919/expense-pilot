@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   FiChevronLeft, 
   FiTrash2, 
@@ -81,6 +81,18 @@ export default function BookDetailPage() {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [deleteTarget, setDeleteTarget] = useState<string | string[] | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  // Filter / Search / Sort / Pagination state
+  const [durationFilter, setDurationFilter] = useState<'all' | '7' | '30' | '365'>('all');
+  const [typeFilter, setTypeFilter] = useState<'all' | 'in' | 'out'>('all');
+  const [paymentModeFilter, setPaymentModeFilter] = useState<string>('all');
+  const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  const [searchTerm, setSearchTerm] = useState<string>('');
+  const [sortBy, setSortBy] = useState<'createdAt' | 'amount' | 'balance' | null>('createdAt');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
+  const [page, setPage] = useState<number>(1);
+  const [pageSize, setPageSize] = useState<number>(50);
+
   const { formatCurrency } = useCurrency(); // Ensure you have this context or remove and use simple formatter
 
   useEffect(() => {
@@ -167,20 +179,94 @@ export default function BookDetailPage() {
     }
   };
 
-  // Calculate Totals
-  const cashIn = expenses.reduce((sum, item) => sum + (item.type === 'in' ? item.amount : 0), 0);
-  const cashOut = expenses.reduce((sum, item) => sum + (item.type === 'out' ? item.amount : 0), 0);
+  // Derived lists: apply filters, search, sorting and compute running balances
+  const filteredExpenses = useMemo(() => {
+    const now = new Date();
+    return expenses.filter(e => {
+      // Duration filter
+      if (durationFilter !== 'all') {
+        const days = parseInt(durationFilter, 10);
+        const daysAgo = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
+        if (!e.createdAt || e.createdAt < daysAgo) return false;
+      }
+      // Type filter
+      if (typeFilter !== 'all' && e.type !== typeFilter) return false;
+      // Payment mode filter
+      if (paymentModeFilter !== 'all' && e.paymentMode !== paymentModeFilter) return false;
+      // Category filter
+      if (categoryFilter !== 'all' && e.category !== categoryFilter) return false;
+      // Search filter (description / remarks / amount)
+      if (searchTerm.trim() !== '') {
+        const s = searchTerm.toLowerCase();
+        if (!(`${e.description} ${e.remarks} ${e.amount}`.toLowerCase()).includes(s)) return false;
+      }
+      return true;
+    });
+  }, [expenses, durationFilter, typeFilter, paymentModeFilter, categoryFilter, searchTerm]);
+
+  // Totals for current filtered view
+  const cashIn = useMemo(() => filteredExpenses.reduce((sum, item) => sum + (item.type === 'in' ? item.amount : 0), 0), [filteredExpenses]);
+  const cashOut = useMemo(() => filteredExpenses.reduce((sum, item) => sum + (item.type === 'out' ? item.amount : 0), 0), [filteredExpenses]);
   const netBalance = cashIn - cashOut;
 
-  // Mock Running Balance Calculation (Reverse for display purposes if sorted Descending)
-  // Note: For accurate running balance in a paginated list, you'd need backend support.
-  // This is a visual approximation for the current page.
-  let runningBalance = netBalance; 
-  const expensesWithBalance = expenses.map(e => {
-    const currentBalance = runningBalance;
-    runningBalance -= (e.type === 'in' ? e.amount : -e.amount);
-    return { ...e, balance: currentBalance };
-  });
+  // Sort and compute running balance (balance is cumulative from oldest to newest)
+  const sortedWithBalance = useMemo(() => {
+    // compute balances (based on chronological history)
+    const byDateAsc = [...filteredExpenses].sort((a, b) => (a.createdAt?.getTime() || 0) - (b.createdAt?.getTime() || 0));
+    let running = 0;
+    const balanceMap = new Map<string, number>();
+    byDateAsc.forEach(tx => {
+      running += tx.type === 'in' ? tx.amount : -tx.amount;
+      balanceMap.set(tx.id, running);
+    });
+
+    // produce a sorted list based on the requested sort field
+    const sorted = [...filteredExpenses].sort((a, b) => {
+      if (sortBy === 'amount') return sortDir === 'asc' ? a.amount - b.amount : b.amount - a.amount;
+      if (sortBy === 'balance') {
+        const ba = balanceMap.get(a.id) ?? 0;
+        const bb = balanceMap.get(b.id) ?? 0;
+        return sortDir === 'asc' ? ba - bb : bb - ba;
+      }
+      // default: sort by date
+      return sortDir === 'asc' ? ((a.createdAt?.getTime() || 0) - (b.createdAt?.getTime() || 0)) : ((b.createdAt?.getTime() || 0) - (a.createdAt?.getTime() || 0));
+    });
+
+    return sorted.map(tx => ({ ...tx, balance: balanceMap.get(tx.id) ?? 0 }));
+  }, [filteredExpenses, sortBy, sortDir]);
+
+  // Pagination / derived values
+  const totalFiltered = filteredExpenses.length;
+  const totalPages = Math.max(1, Math.ceil(sortedWithBalance.length / pageSize));
+  if (page > totalPages) setPage(1);
+  const startIndex = totalFiltered === 0 ? 0 : (page - 1) * pageSize + 1;
+  const endIndex = Math.min(page * pageSize, totalFiltered);
+  const displayedExpenses = sortedWithBalance.slice((page - 1) * pageSize, page * pageSize);
+
+  // Utilities
+  const handleSort = (field: 'createdAt' | 'amount' | 'balance') => {
+    if (sortBy === field) setSortDir(prev => prev === 'asc' ? 'desc' : 'asc');
+    else { setSortBy(field); setSortDir('desc'); }
+  };
+
+  const exportCSV = () => {
+    const rows = [
+      ['Date', 'Time', 'Description', 'Category', 'Mode', 'Amount', 'Balance']
+    ];
+    sortedWithBalance.forEach(r => {
+      const d = r.createdAt ? r.createdAt.toLocaleDateString('en-GB') : '';
+      const t = r.createdAt ? r.createdAt.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '';
+      rows.push([d, t, r.description, r.category || '', r.paymentMode || '', String(r.amount), String(r.balance ?? '')]);
+    });
+    const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${bookName || 'report'}-expenses.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <Box sx={{ pb: 4 }}>
@@ -196,7 +282,7 @@ export default function BookDetailPage() {
           </Typography>
         </Box>
         <Box sx={{ display: 'flex', gap: 2 }}>
-           <Button variant="outlined" startIcon={<FiDownload />} sx={{ textTransform: 'none', borderColor: '#e0e0e0', color: 'text.primary' }}>
+           <Button variant="outlined" startIcon={<FiDownload />} onClick={exportCSV} sx={{ textTransform: 'none', borderColor: '#e0e0e0', color: 'text.primary' }}>
              Reports
            </Button>
         </Box>
@@ -206,24 +292,50 @@ export default function BookDetailPage() {
 
       {/* --- Filter Bar --- */}
       <Box sx={{ display: 'flex', gap: 2, mb: 4, flexWrap: 'wrap' }}>
-        {['Duration: All Time', 'Types: All', 'Members: All', 'Payment Modes: All', 'Categories: All'].map((label, index) => (
-          <FormControl key={index} size="small" sx={{ minWidth: 140 }}>
-            <Select 
-              value={0} 
-              displayEmpty 
-              sx={{ bgcolor: 'white', fontSize: '0.875rem' }}
-              renderValue={() => label}
-            >
-              <MenuItem value={0}>{label}</MenuItem>
-            </Select>
-          </FormControl>
-        ))}
+        <FormControl size="small" sx={{ minWidth: 160 }}>
+          <Select value={durationFilter} onChange={(e) => setDurationFilter(e.target.value as any)} displayEmpty sx={{ bgcolor: 'white', fontSize: '0.875rem' }}>
+            <MenuItem value={'all'}>Duration: All Time</MenuItem>
+            <MenuItem value={'7'}>Last 7 days</MenuItem>
+            <MenuItem value={'30'}>Last 30 days</MenuItem>
+            <MenuItem value={'365'}>Last 12 months</MenuItem>
+          </Select>
+        </FormControl>
+
+        <FormControl size="small" sx={{ minWidth: 140 }}>
+          <Select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value as any)} sx={{ bgcolor: 'white', fontSize: '0.875rem' }}>
+            <MenuItem value={'all'}>Types: All</MenuItem>
+            <MenuItem value={'in'}>Income</MenuItem>
+            <MenuItem value={'out'}>Expense</MenuItem>
+          </Select>
+        </FormControl>
+
+        <FormControl size="small" sx={{ minWidth: 160 }}>
+          <Select value={paymentModeFilter} onChange={(e) => setPaymentModeFilter(e.target.value)} sx={{ bgcolor: 'white', fontSize: '0.875rem' }}>
+            <MenuItem value={'all'}>Payment Modes: All</MenuItem>
+            {Array.from(new Set(expenses.map(e => e.paymentMode || 'Online'))).map(pm => (
+              <MenuItem key={pm} value={pm}>{pm}</MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+
+        <FormControl size="small" sx={{ minWidth: 160 }}>
+          <Select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} sx={{ bgcolor: 'white', fontSize: '0.875rem' }}>
+            <MenuItem value={'all'}>Categories: All</MenuItem>
+            {Array.from(new Set(expenses.map(e => e.category || 'General'))).map(cat => (
+              <MenuItem key={cat} value={cat}>{cat}</MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+
+        <Button size="small" onClick={() => { setDurationFilter('all'); setTypeFilter('all'); setPaymentModeFilter('all'); setCategoryFilter('all'); setSearchTerm(''); setPage(1); }}>Clear</Button>
       </Box>
 
       {/* --- Search & Actions --- */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4, gap: 2, flexWrap: 'wrap' }}>
         <TextField
-          placeholder="Search by remark or amount..."
+          value={searchTerm}
+          onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }}
+          placeholder="Search by remark, description or amount..."
           size="small"
           sx={{ flex: 1, maxWidth: 500, bgcolor: 'white' }}
           InputProps={{
@@ -300,15 +412,23 @@ export default function BookDetailPage() {
       {/* --- Table Section --- */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
         <Typography variant="body2" color="text.secondary">
-          Showing 1 - {expenses.length} of {expenses.length} entries
+          Showing {startIndex} - {endIndex} of {totalFiltered} entries
         </Typography>
         <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-           <Select size="small" value={1} sx={{ height: 32 }}>
-             <MenuItem value={1}>Page 1</MenuItem>
+           <Select size="small" value={page} onChange={(e) => setPage(Number(e.target.value))} sx={{ height: 32 }}>
+             {Array.from({ length: totalPages }).map((_, i) => <MenuItem key={i} value={i + 1}>Page {i + 1}</MenuItem>)}
            </Select>
-           <Typography variant="body2">of 1</Typography>
-           <IconButton size="small" disabled><FiChevronLeft /></IconButton>
-           <IconButton size="small" disabled><FiChevronRight /></IconButton>
+           <Typography variant="body2">of {totalPages}</Typography>
+           <IconButton size="small" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page <= 1}><FiChevronLeft /></IconButton>
+           <IconButton size="small" onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page >= totalPages}><FiChevronRight /></IconButton>
+           <FormControl size="small" sx={{ minWidth: 80 }}>
+             <Select value={pageSize} onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }}>
+               <MenuItem value={10}>10</MenuItem>
+               <MenuItem value={25}>25</MenuItem>
+               <MenuItem value={50}>50</MenuItem>
+               <MenuItem value={100}>100</MenuItem>
+             </Select>
+           </FormControl>
         </Box>
       </Box>
 
@@ -319,27 +439,49 @@ export default function BookDetailPage() {
               <TableCell padding="checkbox">
                 <Checkbox 
                   size="small"
-                  checked={expenses.length > 0 && selectedIds.length === expenses.length}
-                  indeterminate={selectedIds.length > 0 && selectedIds.length < expenses.length}
-                  onChange={(e) => e.target.checked ? setSelectedIds(expenses.map(ex => ex.id)) : setSelectedIds([])}
+                  checked={filteredExpenses.length > 0 && selectedIds.length === filteredExpenses.length}
+                  indeterminate={selectedIds.length > 0 && selectedIds.length < filteredExpenses.length}
+                  onChange={(e) => e.target.checked ? setSelectedIds(filteredExpenses.map(ex => ex.id)) : setSelectedIds([])}
                 />
               </TableCell>
-              <TableCell sx={{ fontWeight: 600, color: '#5E6C84', fontSize: '0.8rem' }}>Date & Time</TableCell>
+              <TableCell 
+                onClick={() => handleSort('createdAt')} 
+                sx={{ fontWeight: 600, color: '#5E6C84', fontSize: '0.8rem', cursor: 'pointer' }}
+              >
+                <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                  Date & Time {sortBy === 'createdAt' ? (sortDir === 'asc' ? <FiChevronDown style={{ transform: 'rotate(180deg)' }} /> : <FiChevronDown />) : null}
+                </Box>
+              </TableCell>
               <TableCell sx={{ fontWeight: 600, color: '#5E6C84', fontSize: '0.8rem' }}>Details</TableCell>
               <TableCell sx={{ fontWeight: 600, color: '#5E6C84', fontSize: '0.8rem' }}>Category</TableCell>
               <TableCell sx={{ fontWeight: 600, color: '#5E6C84', fontSize: '0.8rem' }}>Mode</TableCell>
-              <TableCell sx={{ fontWeight: 600, color: '#5E6C84', fontSize: '0.8rem' }}>Bill</TableCell>
-              <TableCell align="right" sx={{ fontWeight: 600, color: '#5E6C84', fontSize: '0.8rem' }}>Amount</TableCell>
-              <TableCell align="right" sx={{ fontWeight: 600, color: '#5E6C84', fontSize: '0.8rem' }}>Balance</TableCell>
+              <TableCell 
+                align="right" 
+                onClick={() => handleSort('amount')} 
+                sx={{ fontWeight: 600, color: '#5E6C84', fontSize: '0.8rem', cursor: 'pointer', width: 140, minWidth: 120 }}
+              >
+                <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', justifyContent: 'flex-end' }}>
+                  Amount {sortBy === 'amount' ? (sortDir === 'asc' ? <FiChevronDown style={{ transform: 'rotate(180deg)' }} /> : <FiChevronDown />) : null}
+                </Box>
+              </TableCell>
+              <TableCell 
+                align="right" 
+                onClick={() => handleSort('balance')} 
+                sx={{ fontWeight: 600, color: '#5E6C84', fontSize: '0.8rem', cursor: 'pointer', width: 140, minWidth: 120 }}
+              >
+                <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', justifyContent: 'flex-end' }}>
+                  Balance {sortBy === 'balance' ? (sortDir === 'asc' ? <FiChevronDown style={{ transform: 'rotate(180deg)' }} /> : <FiChevronDown />) : null}
+                </Box>
+              </TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {loading ? (
-              <TableRow><TableCell colSpan={8} align="center">Loading...</TableCell></TableRow>
-            ) : expensesWithBalance.length === 0 ? (
-              <TableRow><TableCell colSpan={8} align="center">No expenses found.</TableCell></TableRow>
+              <TableRow><TableCell colSpan={7} align="center">Loading...</TableCell></TableRow>
+            ) : filteredExpenses.length === 0 ? (
+              <TableRow><TableCell colSpan={7} align="center">No expenses found.</TableCell></TableRow>
             ) : (
-              expensesWithBalance.map((row) => {
+              displayedExpenses.map((row) => {
                 const { date, time } = formatDate(row.createdAt);
                 const isSelected = selectedIds.indexOf(row.id) !== -1;
                 
@@ -373,18 +515,19 @@ export default function BookDetailPage() {
                     </TableCell>
                     <TableCell><Typography variant="body2">{row.category}</Typography></TableCell>
                     <TableCell><Typography variant="body2">{row.paymentMode}</Typography></TableCell>
-                    <TableCell><Box sx={{ width: 20, height: 2, bgcolor: '#eee' }} /></TableCell>
-                    <TableCell align="right">
+                    <TableCell align="right" sx={{ width: 140, minWidth: 120 }}>
                       <Typography 
                         variant="body2" 
                         fontWeight={600}
                         color={row.type === 'in' ? 'success.main' : 'error.main'}
+                        noWrap
+                        sx={{ textOverflow: 'ellipsis', overflow: 'hidden' }}
                       >
                          {row.amount.toLocaleString()}
                       </Typography>
                     </TableCell>
-                    <TableCell align="right">
-                      <Typography variant="body2" fontWeight={500}>
+                    <TableCell align="right" sx={{ width: 140, minWidth: 120 }}>
+                      <Typography variant="body2" fontWeight={500} noWrap sx={{ textOverflow: 'ellipsis', overflow: 'hidden' }}>
                          {row.balance.toLocaleString()}
                       </Typography>
                     </TableCell>

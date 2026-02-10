@@ -27,8 +27,13 @@ import {
   MenuItem,
   Select,
   FormControl,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
 } from '@mui/material';
-import { collection, getDocs, addDoc, deleteDoc, doc, query, orderBy } from "firebase/firestore";
+import { collection, getDocs, addDoc, deleteDoc, doc, query, orderBy, writeBatch } from "firebase/firestore";
 import { db } from '../firebase';
 import { useRouter } from 'next/navigation';
 import AddBookModal from '../components/AddBookModal';
@@ -64,6 +69,8 @@ export default function BooksPage() {
   const [sortBy, setSortBy] = useState<'last-updated' | 'name'>('last-updated');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const router = useRouter();
   const { formatCurrency } = useCurrency();
 
@@ -132,13 +139,31 @@ export default function BooksPage() {
     }
   };
 
-  const handleDeleteBook = async (bookId: string) => {
-    if (!confirm('Are you sure you want to delete this book?')) return;
+  const handleDeleteBook = (bookId: string) => {
+    // Open confirm dialog instead of using window.confirm()
+    setDeleteTarget(bookId);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget) return;
+    setIsDeleting(true);
+    const id = deleteTarget;
     try {
-      await deleteDoc(doc(db, 'books', bookId));
-      setBooks(books.filter(book => book.id !== bookId));
-    } catch (error) {
-      setError("Failed to delete book.");
+      // Delete expenses in the book (if any) then delete the book doc itself
+      const expensesSnap = await getDocs(collection(db, `books/${id}/expenses`));
+      const batch = writeBatch(db);
+      expensesSnap.docs.forEach((d) => batch.delete(doc(db, `books/${id}/expenses`, d.id)));
+      batch.delete(doc(db, 'books', id));
+      await batch.commit();
+
+      setBooks(prev => prev.filter(b => b.id !== id));
+      setError(null);
+    } catch (e) {
+      console.error('Error deleting book:', e);
+      setError('Failed to delete book.');
+    } finally {
+      setIsDeleting(false);
+      setDeleteTarget(null);
     }
   };
 
@@ -311,7 +336,7 @@ export default function BooksPage() {
                 <IconButton 
                   onClick={(e) => {
                      e.stopPropagation();
-                     handleDeleteBook(book.id);
+                     setDeleteTarget(book.id);
                   }}
                   size="small" 
                   color="error"
@@ -395,6 +420,24 @@ export default function BooksPage() {
         onClose={() => setIsModalOpen(false)}
         onAddBook={handleAddBook}
       />
+
+      <Dialog
+        open={deleteTarget !== null}
+        onClose={() => !isDeleting && setDeleteTarget(null)}
+      >
+        <DialogTitle>Confirm Deletion</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Are you sure you want to delete this book and all its expenses? This cannot be undone.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteTarget(null)} disabled={isDeleting}>Cancel</Button>
+          <Button onClick={handleConfirmDelete} color="error" autoFocus disabled={isDeleting}>
+            {isDeleting ? 'Deleting...' : 'Delete'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Container>
   );
 }

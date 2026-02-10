@@ -26,6 +26,7 @@ interface AddExpenseModalProps {
   isOpen: boolean;
   onClose: () => void;
   initialType?: 'in' | 'out';
+  currentBalance?: number;
   onAddExpense: (expense: {
     description: string;
     amount: number;
@@ -40,7 +41,7 @@ interface AddExpenseModalProps {
 
 const DEFAULT_CATEGORIES = ['Misc', 'Food', 'Medical', 'Travel'];
 
-export default function AddExpenseModal({ isOpen, onClose, onAddExpense, initialType }: AddExpenseModalProps) {
+export default function AddExpenseModal({ isOpen, onClose, onAddExpense, initialType, currentBalance = 0 }: AddExpenseModalProps) {
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
   const [type, setType] = useState<'in' | 'out'>(initialType ?? 'out');
@@ -51,7 +52,17 @@ export default function AddExpenseModal({ isOpen, onClose, onAddExpense, initial
   const [availableCategories, setAvailableCategories] = useState<string[]>(DEFAULT_CATEGORIES);
   const [isSaving, setIsSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const { currency } = useCurrency();
+  const { currency, formatCurrency } = useCurrency();
+
+  // Calculate projected balance after this entry
+  const projectedBalance = React.useMemo(() => {
+    const amountNum = parseFloat(amount) || 0;
+    if (type === 'in') {
+      return currentBalance + amountNum;
+    } else {
+      return currentBalance - amountNum;
+    }
+  }, [currentBalance, amount, type]);
 
   useEffect(() => {
     const fetchCategories = async () => {
@@ -211,6 +222,36 @@ export default function AddExpenseModal({ isOpen, onClose, onAddExpense, initial
                 </Box>
               </ToggleButton>
             </ToggleButtonGroup>
+          </Box>
+
+          {/* Balance Display */}
+          <Box sx={{ mb: 3, p: 2, bgcolor: 'action.hover', borderRadius: 2 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+              <Typography variant="body2" color="text.secondary">
+                Current Balance
+              </Typography>
+              <Typography
+                variant="subtitle1"
+                fontWeight={600}
+                color={currentBalance >= 0 ? 'success.main' : 'error.main'}
+              >
+                {formatCurrency(currentBalance)}
+              </Typography>
+            </Box>
+            {amount && parseFloat(amount) > 0 && (
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Typography variant="body2" color="text.secondary">
+                  Balance after this entry
+                </Typography>
+                <Typography
+                  variant="subtitle1"
+                  fontWeight={600}
+                  color={projectedBalance >= 0 ? 'success.main' : 'error.main'}
+                >
+                  {formatCurrency(projectedBalance)}
+                </Typography>
+              </Box>
+            )}
           </Box>
 
           {/* Description */}

@@ -1,7 +1,16 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { FiPlus, FiSearch, FiTrash2, FiArrowRight } from 'react-icons/fi';
+import {
+  FiPlus,
+  FiSearch,
+  FiTrash2,
+  FiArrowRight,
+  FiEdit2,
+  FiCopy,
+  FiUserPlus,
+  FiChevronDown
+} from 'react-icons/fi';
 import { FaBook } from 'react-icons/fa';
 import {
   Button,
@@ -10,92 +19,53 @@ import {
   Box,
   Typography,
   Alert,
-  Grid,
-  Card,
-  CardContent,
   IconButton,
   Skeleton,
+  Paper,
+  Container,
+  Chip,
+  MenuItem,
+  Select,
+  FormControl,
 } from '@mui/material';
 import { collection, getDocs, addDoc, deleteDoc, doc, query, orderBy } from "firebase/firestore";
 import { db } from '../firebase';
 import { useRouter } from 'next/navigation';
 import AddBookModal from '../components/AddBookModal';
+import { useCurrency } from '../context/CurrencyContext';
 
 interface Book {
   id: string;
   name: string;
-  createdAt?: string;
+  createdAt?: any;
+  updatedAtString?: string; // Mapped for UI display
+  netBalance?: number; // Calculated net balance from expenses
 }
 
-// Skeleton loader for book cards
-const BookSkeleton = () => (
-  <Card>
-    <CardContent sx={{ p: 3 }}>
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
-        <Skeleton variant="rounded" width={48} height={48} />
-        <Box sx={{ flex: 1 }}>
-          <Skeleton variant="text" width="70%" height={24} />
-          <Skeleton variant="text" width="50%" height={16} />
-        </Box>
-      </Box>
-      <Skeleton variant="text" width="40%" height={20} />
-    </CardContent>
-  </Card>
+// Skeleton loader for list rows
+const ListSkeleton = () => (
+  <Paper elevation={0} sx={{ p: 2, mb: 2, border: '1px solid #f0f0f0', display: 'flex', alignItems: 'center', gap: 2 }}>
+    <Skeleton variant="circular" width={40} height={40} />
+    <Box sx={{ flex: 1 }}>
+      <Skeleton variant="text" width="40%" height={24} />
+      <Skeleton variant="text" width="20%" height={16} />
+    </Box>
+    <Skeleton variant="text" width="10%" height={24} />
+    <Skeleton variant="rectangular" width={100} height={30} />
+  </Paper>
 );
 
-const EmptyState = ({ onCreate }: { onCreate: () => void }) => (
-  <Card
-    sx={{
-      textAlign: 'center',
-      py: 8,
-      px: 3,
-      border: '2px dashed',
-      borderColor: 'divider',
-      bgcolor: 'transparent',
-    }}
-  >
-    <CardContent>
-      <Box
-        sx={{
-          width: 80,
-          height: 80,
-          borderRadius: 3,
-          bgcolor: 'primary.main',
-          color: 'primary.contrastText',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          mx: 'auto',
-          mb: 3,
-        }}
-      >
-        <FaBook size={32} />
-      </Box>
-      <Typography variant="h5" gutterBottom fontWeight={600}>
-        No books yet
-      </Typography>
-      <Typography variant="body1" color="text.secondary" sx={{ mb: 4, maxWidth: 400, mx: 'auto' }}>
-        Create your first expense book to start tracking spending with structure.
-      </Typography>
-      <Button
-        variant="contained"
-        onClick={onCreate}
-        startIcon={<FiPlus />}
-        size="large"
-      >
-        Create Your First Book
-      </Button>
-    </CardContent>
-  </Card>
-);
+const SUGGESTIONS = ['February Expenses', 'Home Expense', 'Project Book', 'Account Book'];
 
 export default function BooksPage() {
   const [books, setBooks] = useState<Book[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [sortBy, setSortBy] = useState<'last-updated' | 'name'>('last-updated');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+  const { formatCurrency } = useCurrency();
 
   useEffect(() => {
     fetchBooks();
@@ -106,16 +76,41 @@ export default function BooksPage() {
       setLoading(true);
       const q = query(collection(db, 'books'), orderBy('createdAt', 'desc'));
       const querySnapshot = await getDocs(q);
-      const booksData = querySnapshot.docs.map(doc => ({ 
-        id: doc.id, 
-        name: doc.data().name,
-        createdAt: doc.data().createdAt?.toDate?.().toLocaleDateString() || 'Recently'
-      }));
+      
+      // Fetch books with their net balances
+      const booksData = await Promise.all(
+        querySnapshot.docs.map(async (bookDoc) => {
+          const bookData = bookDoc.data();
+          
+          // Fetch expenses for this book to calculate net balance
+          const expensesSnapshot = await getDocs(collection(db, `books/${bookDoc.id}/expenses`));
+          let netBalance = 0;
+          
+          expensesSnapshot.docs.forEach((expenseDoc) => {
+            const expenseData = expenseDoc.data();
+            const amount = expenseData.amount || 0;
+            if (expenseData.type === 'in') {
+              netBalance += amount;
+            } else {
+              netBalance -= amount;
+            }
+          });
+          
+          return {
+            id: bookDoc.id,
+            name: bookData.name,
+            createdAt: bookData.createdAt,
+            updatedAtString: 'Updated recently',
+            netBalance
+          };
+        })
+      );
+      
       setBooks(booksData);
       setError(null);
     } catch (error) {
       console.error("Error fetching books:", error);
-      setError("Failed to load books. Please try again.");
+      setError("Failed to load books.");
     } finally {
       setLoading(false);
     }
@@ -129,24 +124,21 @@ export default function BooksPage() {
         userId: 'anonymous',
       });
       
-      setBooks([{ id: docRef.id, name: bookName, createdAt: 'Just now' }, ...books]);
+      setBooks([{ id: docRef.id, name: bookName, updatedAtString: 'Just now', netBalance: 0 }, ...books]);
       setIsModalOpen(false);
-      setError(null);
     } catch (e) {
       console.error("Error adding document: ", e);
-      setError("Failed to create book. Please check your connection and try again.");
+      setError("Failed to create book.");
     }
   };
 
   const handleDeleteBook = async (bookId: string) => {
-    if (!confirm('Are you sure you want to delete this book? All expenses will be lost.')) return;
-    
+    if (!confirm('Are you sure you want to delete this book?')) return;
     try {
       await deleteDoc(doc(db, 'books', bookId));
       setBooks(books.filter(book => book.id !== bookId));
     } catch (error) {
-      console.error("Error deleting book:", error);
-      setError("Failed to delete book. Please try again.");
+      setError("Failed to delete book.");
     }
   };
 
@@ -154,169 +146,255 @@ export default function BooksPage() {
     router.push(`/book/${bookId}`);
   };
 
-  const filteredBooks = books.filter(book => 
-    book.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredAndSortedBooks = React.useMemo(() => {
+    let result = books.filter(book =>
+      book.name.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+    
+    if (sortBy === 'name') {
+      result = [...result].sort((a, b) => a.name.localeCompare(b.name));
+    }
+    // 'last-updated' is already handled by the orderBy query in fetchBooks
+    
+    return result;
+  }, [books, searchQuery, sortBy]);
 
   return (
-    <Box>
-      {/* Header */}
-      <Box sx={{ mb: 4 }}>
-        <Typography variant="h4" fontWeight={600} gutterBottom>
-          My Books
-        </Typography>
-        <Typography variant="body1" color="text.secondary">
-          Manage and organize all your expense books.
-        </Typography>
+    <Container maxWidth="lg" sx={{ py: 4 }}>
+      
+      {/* --- Top Controls Section --- */}
+      <Box sx={{ 
+        display: 'flex', 
+        flexDirection: { xs: 'column', md: 'row' }, 
+        gap: 2, 
+        mb: 4, 
+        alignItems: 'center' 
+      }}>
+        
+        {/* Search Bar */}
+        <TextField
+          placeholder="Search by book name..."
+          size="small"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          sx={{ 
+            flex: 1, 
+            width: '100%',
+            '& .MuiOutlinedInput-root': { bgcolor: 'white' } 
+          }}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <FiSearch color="#888" />
+              </InputAdornment>
+            ),
+            endAdornment: (
+              <InputAdornment position="end">
+                <Box sx={{ 
+                  border: '1px solid #ddd', 
+                  borderRadius: 1, 
+                  px: 1, 
+                  color: '#888', 
+                  fontSize: '0.75rem',
+                  bgcolor: '#f9f9f9'
+                }}>
+                  /
+                </Box>
+              </InputAdornment>
+            ),
+          }}
+        />
+
+        {/* Sort Dropdown */}
+        <FormControl size="small" sx={{ minWidth: 200, display: { xs: 'none', sm: 'block' } }}>
+          <Select
+            value={sortBy}
+            displayEmpty
+            sx={{ bgcolor: 'white' }}
+            onChange={(e) => setSortBy(e.target.value as 'last-updated' | 'name')}
+            renderValue={(selected) => {
+              if (selected === 'last-updated') return 'Sort By: Last Updated';
+              if (selected === 'name') return 'Sort By: Name';
+              return selected;
+            }}
+          >
+            <MenuItem value="last-updated">Sort By: Last Updated</MenuItem>
+            <MenuItem value="name">Sort By: Name</MenuItem>
+          </Select>
+        </FormControl>
+
+        {/* Add Button */}
+        <Button
+          variant="contained"
+          onClick={() => setIsModalOpen(true)}
+          startIcon={<FiPlus />}
+          sx={{ 
+            height: 40, 
+            px: 3, 
+            bgcolor: '#4361EE', // Matches the specific blue in screenshot
+            textTransform: 'none',
+            fontWeight: 600,
+            whiteSpace: 'nowrap',
+            '&:hover': { bgcolor: '#3651d4' }
+          }}
+        >
+          Add New Book
+        </Button>
       </Box>
 
-      {error && (
-        <Alert severity="error" sx={{ mb: 3 }}>
-          {error}
-        </Alert>
-      )}
+      {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
 
-      {/* Search and Actions */}
-      {books.length > 0 && (
-        <Box sx={{ display: 'flex', gap: 2, mb: 4, flexWrap: 'wrap' }}>
-          <TextField
-            placeholder="Search books..."
-            size="small"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            sx={{ flex: 1, minWidth: 200 }}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <FiSearch />
-                </InputAdornment>
-              ),
-            }}
-          />
-          <Button
-            variant="contained"
-            onClick={() => setIsModalOpen(true)}
-            startIcon={<FiPlus />}
-          >
-            Create New Book
-          </Button>
-        </Box>
-      )}
-
-      {/* Books Grid */}
-      {loading ? (
-        <Grid container spacing={3}>
-          {[1, 2, 3, 4, 5, 6].map((i) => (
-            <Grid size={{ xs: 12, md: 6, lg: 4 }} key={i}>
-              <BookSkeleton />
-            </Grid>
-          ))}
-        </Grid>
-      ) : filteredBooks.length > 0 ? (
-        <Grid container spacing={3}>
-          {filteredBooks.map((book) => (
-            <Grid size={{ xs: 12, md: 6, lg: 4 }} key={book.id}>
-              <Card
-                sx={{
-                  position: 'relative',
-                  transition: 'transform 200ms ease, box-shadow 200ms ease',
-                  '&:hover': {
-                    transform: 'translateY(-2px)',
-                    boxShadow: 3,
-                  },
-                }}
-              >
-                <CardContent sx={{ p: 3 }}>
-                  <Box
-                    onClick={() => handleBookClick(book.id)}
-                    sx={{ cursor: 'pointer' }}
-                  >
-                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                      <Box
-                        sx={{
-                          width: 48,
-                          height: 48,
-                          borderRadius: 2,
-                          bgcolor: 'primary.main',
-                          color: 'primary.contrastText',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          mr: 2,
-                        }}
-                      >
-                        <FaBook size={20} />
-                      </Box>
-                      <Box sx={{ flex: 1, minWidth: 0 }}>
-                        <Typography variant="h6" noWrap fontWeight={600}>
-                          {book.name}
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          Created {book.createdAt}
-                        </Typography>
-                      </Box>
-                    </Box>
-                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <Typography
-                        variant="button"
-                        color="primary"
-                        sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}
-                      >
-                        Open <FiArrowRight />
-                      </Typography>
-                    </Box>
-                  </Box>
-
-                  <IconButton
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDeleteBook(book.id);
-                    }}
-                    size="small"
-                    sx={{
-                      position: 'absolute',
-                      top: 12,
-                      right: 12,
-                      color: 'text.secondary',
-                      bgcolor: 'action.hover',
-                      '&:hover': {
-                        bgcolor: 'error.main',
-                        color: 'error.contrastText',
-                      },
-                    }}
-                    title="Delete book"
-                    aria-label={`Delete ${book.name}`}
-                  >
-                    <FiTrash2 size={16} />
-                  </IconButton>
-                </CardContent>
-              </Card>
-            </Grid>
-          ))}
-        </Grid>
-      ) : books.length > 0 ? (
-        <Card sx={{ textAlign: 'center', py: 6 }}>
-          <CardContent>
-            <Typography color="text.secondary" gutterBottom>
-              No books match your search.
-            </Typography>
-            <Button
-              variant="outlined"
-              onClick={() => setSearchQuery('')}
+      {/* --- Books List --- */}
+      <Box sx={{ minHeight: 300 }}>
+        {loading ? (
+          [1, 2, 3].map((i) => <ListSkeleton key={i} />)
+        ) : filteredAndSortedBooks.length > 0 ? (
+          filteredAndSortedBooks.map((book) => (
+            <Paper
+              key={book.id}
+              elevation={0}
+              sx={{
+                p: 2,
+                mb: 2,
+                borderRadius: 2,
+                border: '1px solid transparent',
+                display: 'flex',
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: 2,
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                '&:hover': {
+                  bgcolor: '#f8f9fc', // Very light blue/grey hover
+                  borderColor: '#e0e0e0',
+                }
+              }}
+              onClick={() => handleBookClick(book.id)}
             >
-              Clear search
-            </Button>
-          </CardContent>
-        </Card>
-      ) : (
-        <EmptyState onCreate={() => setIsModalOpen(true)} />
-      )}
+              {/* Icon */}
+              <Box sx={{ 
+                width: 48, 
+                height: 48, 
+                borderRadius: '50%', 
+                bgcolor: '#eef2ff', 
+                color: '#4361EE',
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center' 
+              }}>
+                <FaBook size={20} />
+              </Box>
+
+              {/* Title & Date */}
+              <Box sx={{ flex: 1, minWidth: 150 }}>
+                <Typography variant="subtitle1" fontWeight={600} color="#1a1a1a">
+                  {book.name}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {book.updatedAtString}
+                </Typography>
+              </Box>
+
+              {/* Net Balance */}
+              <Box sx={{ textAlign: 'right', mr: 2, display: { xs: 'none', sm: 'block' } }}>
+                <Typography
+                  variant="h6"
+                  fontWeight={600}
+                  color={(book.netBalance ?? 0) >= 0 ? '#00a86b' : '#d32f2f'}
+                >
+                  {formatCurrency(Math.abs(book.netBalance ?? 0))}
+                </Typography>
+              </Box>
+
+              {/* Actions */}
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }} onClick={(e) => e.stopPropagation()}>
+                <IconButton 
+                  onClick={(e) => {
+                     e.stopPropagation();
+                     handleDeleteBook(book.id);
+                  }}
+                  size="small" 
+                  color="error"
+                >
+                  <FiTrash2 size={18} />
+                </IconButton>
+                <IconButton 
+                  onClick={() => handleBookClick(book.id)}
+                  size="small" 
+                  sx={{ color: '#d32f2f' }} // Red arrow from screenshot (or keep standard)
+                >
+                  <FiArrowRight size={18} />
+                </IconButton>
+              </Box>
+            </Paper>
+          ))
+        ) : (
+          <Box sx={{ textAlign: 'center', py: 8, color: 'text.secondary' }}>
+            <Typography variant="h6">No books found</Typography>
+            <Typography variant="body2">Try searching for something else</Typography>
+          </Box>
+        )}
+      </Box>
+
+      {/* --- Quick Add / Suggestions Section --- */}
+      <Paper elevation={0} sx={{ 
+        p: 3, 
+        mt: 4, 
+        border: '1px solid #f0f0f0', 
+        borderRadius: 2,
+        display: 'flex',
+        alignItems: { xs: 'flex-start', md: 'center' },
+        gap: 3,
+        flexDirection: { xs: 'column', md: 'row' }
+      }}>
+        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+           <Box sx={{ 
+             width: 48, 
+             height: 48, 
+             borderRadius: '50%', 
+             bgcolor: '#e8f5e9', // Light green bg for the icon
+             color: '#2e7d32',
+             display: 'flex', 
+             alignItems: 'center', 
+             justifyContent: 'center',
+             flexShrink: 0
+           }}>
+             <img 
+               src="https://cdn-icons-png.flaticon.com/512/2921/2921222.png" 
+               alt="Add" 
+               style={{ width: 24, height: 24, opacity: 0.7 }} 
+             /> 
+             {/* Alternatively use <FiPlus size={24} /> if no image asset */}
+           </Box>
+           <Box>
+             <Typography variant="subtitle1" fontWeight={700}>Add New Book</Typography>
+             <Typography variant="body2" color="text.secondary">Click to quickly add books for</Typography>
+           </Box>
+        </Box>
+
+        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+          {SUGGESTIONS.map((suggestion) => (
+            <Chip 
+              key={suggestion} 
+              label={suggestion} 
+              onClick={() => handleAddBook(suggestion)}
+              sx={{ 
+                bgcolor: '#eff2ff', 
+                color: '#4361EE', 
+                fontWeight: 500,
+                cursor: 'pointer',
+                '&:hover': { bgcolor: '#dde4ff' }
+              }} 
+            />
+          ))}
+        </Box>
+      </Paper>
 
       <AddBookModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onAddBook={handleAddBook}
       />
-    </Box>
+    </Container>
   );
 }

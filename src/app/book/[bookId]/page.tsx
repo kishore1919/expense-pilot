@@ -10,7 +10,8 @@ import {
   FiDownload,
   FiChevronDown,
   FiChevronRight,
-  FiFilter
+  FiFilter,
+  FiBarChart2
 } from 'react-icons/fi';
 import {
   Button,
@@ -350,6 +351,15 @@ export default function BookDetailPage() {
           </Typography>
         </Box>
         <Box sx={{ display: 'flex', gap: 1, width: { xs: '100%', sm: 'auto' } }}>
+           <Button 
+             variant="outlined" 
+             startIcon={<FiBarChart2 />} 
+             onClick={() => router.push(`/book/${bookId}/analytics`)} 
+             fullWidth={isMobile}
+             sx={{ textTransform: 'none', borderColor: 'divider', color: 'text.primary' }}
+           >
+             Analytics
+           </Button>
            <Button 
              variant="outlined" 
              startIcon={<FiDownload />} 

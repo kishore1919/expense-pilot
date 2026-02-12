@@ -14,8 +14,12 @@ import {
   useMediaQuery,
   Paper,
   Divider,
-  ToggleButton,
-  ToggleButtonGroup
+  Button,
+  Menu,
+  MenuItem,
+  Radio,
+  FormControlLabel,
+  RadioGroup
 } from '@mui/material';
 import { 
   FiChevronLeft, 
@@ -23,7 +27,8 @@ import {
   FiTrendingDown, 
   FiPieChart, 
   FiActivity,
-  FiTag
+  FiTag,
+  FiChevronDown
 } from 'react-icons/fi';
 import { 
   LineChart, 
@@ -69,7 +74,40 @@ export default function BookAnalyticsPage() {
   const [bookName, setBookName] = useState('');
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
-  const [timeRange, setTimeRange] = useState<'1' | '7' | '30' | '90' | '365' | 'all'>('30');
+  const [timeRange, setTimeRange] = useState<'today' | 'yesterday' | 'thisMonth' | 'lastMonth' | 'all' | 'custom'>('all');
+  const [customRange, setCustomRange] = useState<{ start: string; end: string }>({ 
+    start: new Date().toISOString().split('T')[0], 
+    end: new Date().toISOString().split('T')[0] 
+  });
+  const [expenseType, setExpenseType] = useState<'all' | 'in' | 'out'>('all');
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const [typeAnchorEl, setTypeAnchorEl] = useState<null | HTMLElement>(null);
+
+  const handleOpenMenu = (event: React.MouseEvent<HTMLButtonElement>) => {
+    setAnchorEl(event.currentTarget);
+  };
+
+  const handleCloseMenu = () => {
+    setAnchorEl(null);
+  };
+
+  const handleOpenTypeMenu = (event: React.MouseEvent<HTMLButtonElement>) => {
+    setTypeAnchorEl(event.currentTarget);
+  };
+
+  const handleCloseTypeMenu = () => {
+    setTypeAnchorEl(null);
+  };
+
+  const handleRangeChange = (val: typeof timeRange) => {
+    setTimeRange(val);
+    handleCloseMenu();
+  };
+
+  const handleTypeChange = (val: typeof expenseType) => {
+    setExpenseType(val);
+    handleCloseTypeMenu();
+  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -121,12 +159,61 @@ export default function BookAnalyticsPage() {
   }, [bookId, user, router]);
 
   const filteredExpenses = useMemo(() => {
-    if (timeRange === 'all') return expenses;
     const now = new Date();
-    const days = parseInt(timeRange, 10);
-    const cutoff = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
-    return expenses.filter(e => e.createdAt >= cutoff);
-  }, [expenses, timeRange]);
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    
+    let base = expenses;
+
+    // Apply Duration
+    switch (timeRange) {
+      case 'today':
+        base = base.filter(e => e.createdAt >= startOfToday);
+        break;
+      
+      case 'yesterday': {
+        const startOfYesterday = new Date(startOfToday);
+        startOfYesterday.setDate(startOfYesterday.getDate() - 1);
+        base = base.filter(e => e.createdAt >= startOfYesterday && e.createdAt < startOfToday);
+        break;
+      }
+      
+      case 'thisMonth': {
+        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+        base = base.filter(e => e.createdAt >= startOfMonth);
+        break;
+      }
+      
+      case 'lastMonth': {
+        const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);
+        base = base.filter(e => e.createdAt >= startOfLastMonth && e.createdAt <= endOfLastMonth);
+        break;
+      }
+
+      case 'custom': {
+        // Use local date parsing for custom range to match local createdAt dates
+        const parseLocalDate = (dateStr: string, isEnd: boolean) => {
+          const [year, month, day] = dateStr.split('-').map(Number);
+          const d = new Date(year, month - 1, day);
+          if (isEnd) d.setHours(23, 59, 59, 999);
+          else d.setHours(0, 0, 0, 0);
+          return d;
+        };
+
+        const startDate = parseLocalDate(customRange.start, false);
+        const endDate = parseLocalDate(customRange.end, true);
+        base = base.filter(e => e.createdAt >= startDate && e.createdAt <= endDate);
+        break;
+      }
+    }
+
+    // Apply Type
+    if (expenseType !== 'all') {
+      base = base.filter(e => e.type === expenseType);
+    }
+
+    return base;
+  }, [expenses, timeRange, expenseType]);
 
   const stats = useMemo(() => {
     const totalIn = filteredExpenses.reduce((sum, e) => sum + (e.type === 'in' ? e.amount : 0), 0);
@@ -141,12 +228,43 @@ export default function BookAnalyticsPage() {
   const dailyData = useMemo(() => {
     const map = new Map<string, { date: string; income: number; expense: number }>();
     
-    // Initialize last 30 days if range is 30
-    if (timeRange !== 'all') {
-      const days = parseInt(timeRange, 10);
-      for (let i = days - 1; i >= 0; i--) {
-        const d = new Date();
-        d.setDate(d.getDate() - i);
+    // For ranges that span multiple days, we can initialize them
+    if (timeRange === 'thisMonth') {
+      const now = new Date();
+      const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+      for (let i = 1; i <= daysInMonth; i++) {
+        const d = new Date(now.getFullYear(), now.getMonth(), i);
+        const dateStr = d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+        map.set(dateStr, { date: dateStr, income: 0, expense: 0 });
+      }
+    } else if (timeRange === 'lastMonth') {
+      const now = new Date();
+      const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const daysInMonth = new Date(now.getFullYear(), now.getMonth(), 0).getDate();
+      for (let i = 1; i <= daysInMonth; i++) {
+        const d = new Date(startOfLastMonth.getFullYear(), startOfLastMonth.getMonth(), i);
+        const dateStr = d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+        map.set(dateStr, { date: dateStr, income: 0, expense: 0 });
+      }
+    } else if (timeRange === 'today') {
+      const dateStr = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+      map.set(dateStr, { date: dateStr, income: 0, expense: 0 });
+    } else if (timeRange === 'yesterday') {
+      const d = new Date();
+      d.setDate(d.getDate() - 1);
+      const dateStr = d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+      map.set(dateStr, { date: dateStr, income: 0, expense: 0 });
+    } else if (timeRange === 'custom') {
+      const start = new Date(customRange.start);
+      const end = new Date(customRange.end);
+      const diffTime = Math.abs(end.getTime() - start.getTime());
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      
+      // Limit to 365 days to prevent performance issues
+      const iterations = Math.min(diffDays, 365);
+      for (let i = 0; i <= iterations; i++) {
+        const d = new Date(start);
+        d.setDate(d.getDate() + i);
         const dateStr = d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
         map.set(dateStr, { date: dateStr, income: 0, expense: 0 });
       }
@@ -160,7 +278,10 @@ export default function BookAnalyticsPage() {
       map.set(dateStr, current);
     });
 
-    return Array.from(map.values());
+    return Array.from(map.values()).sort((a,b) => {
+      // Small sorting logic needed for some cases where map isn't naturally ordered
+      return 0; // The map usage above for months is ordered by i
+    });
   }, [filteredExpenses, timeRange]);
 
   const categoryData = useMemo(() => {
@@ -209,28 +330,156 @@ export default function BookAnalyticsPage() {
           </Typography>
         </Box>
         
-        <ToggleButtonGroup
-          value={timeRange}
-          exclusive
-          onChange={(_, val) => val && setTimeRange(val)}
-          size="small"
-          aria-label="time range"
-          sx={{ 
-            flexWrap: 'wrap',
-            '& .MuiToggleButton-root': {
+        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+          {/* Duration Filter */}
+          <Button
+            variant="outlined"
+            onClick={handleOpenMenu}
+            endIcon={<FiChevronDown />}
+            sx={{ 
+              textTransform: 'none', 
+              borderRadius: 2,
+              borderColor: 'divider',
+              color: 'text.primary',
               px: { xs: 1, sm: 2 },
-              py: 0.5,
-              fontSize: { xs: '0.75rem', sm: '0.875rem' }
-            }
-          }}
-        >
-          <ToggleButton value="1" sx={{ textTransform: 'none' }}>1D</ToggleButton>
-          <ToggleButton value="7" sx={{ textTransform: 'none' }}>7D</ToggleButton>
-          <ToggleButton value="30" sx={{ textTransform: 'none' }}>30D</ToggleButton>
-          <ToggleButton value="90" sx={{ textTransform: 'none' }}>90D</ToggleButton>
-          <ToggleButton value="365" sx={{ textTransform: 'none' }}>1Y</ToggleButton>
-          <ToggleButton value="all" sx={{ textTransform: 'none' }}>All</ToggleButton>
-        </ToggleButtonGroup>
+              minWidth: 140,
+              '&:hover': { borderColor: 'primary.main', bgcolor: 'action.hover' }
+            }}
+          >
+            Duration: {timeRange === 'all' ? 'All Time' : 
+                       timeRange === 'today' ? 'Today' :
+                       timeRange === 'yesterday' ? 'Yesterday' :
+                       timeRange === 'thisMonth' ? 'This Month' : 
+                       timeRange === 'lastMonth' ? 'Last Month' : 
+                       `${new Date(customRange.start).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })} - ${new Date(customRange.end).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}`}
+          </Button>
+
+
+          {/* Duration Menu */}
+          <Menu
+            anchorEl={anchorEl}
+            open={Boolean(anchorEl)}
+            onClose={handleCloseMenu}
+            PaperProps={{
+              sx: { width: 220, borderRadius: 2, mt: 1, boxShadow: theme.shadows[4] }
+            }}
+          >
+            {[
+              { label: 'All Time', value: 'all' },
+              { label: 'Today', value: 'today' },
+              { label: 'Yesterday', value: 'yesterday' },
+              { label: 'This Month', value: 'thisMonth' },
+              { label: 'Last Month', value: 'lastMonth' },
+            ].map((option) => (
+              <MenuItem 
+                key={option.value} 
+                onClick={() => handleRangeChange(option.value as any)}
+                sx={{ py: 0.5 }}
+              >
+                <FormControlLabel
+                  value={option.value}
+                  control={<Radio size="small" checked={timeRange === option.value} />}
+                  label={option.label}
+                  sx={{ width: '100%', m: 0 }}
+                />
+              </MenuItem>
+            ))}
+            <MenuItem onClick={() => setTimeRange('custom')} sx={{ py: 0.5, borderTop: '1px solid', borderColor: 'divider' }}>
+              <FormControlLabel
+                value="custom"
+                control={<Radio size="small" checked={timeRange === 'custom'} />}
+                label="Custom"
+                sx={{ width: '100%', m: 0 }}
+              />
+            </MenuItem>
+            
+            {timeRange === 'custom' && (
+              <Box 
+                sx={{ p: 2, display: 'flex', flexDirection: 'column', gap: 1.5 }}
+                onClick={(e) => e.stopPropagation()}
+                onKeyDown={(e) => e.stopPropagation()}
+              >
+                <Box>
+                  <Typography variant="caption" color="text.secondary">From</Typography>
+                  <Box component="input"
+                    type="date" 
+                    value={customRange.start}
+                    onChange={(e: any) => setCustomRange(prev => ({ ...prev, start: e.target.value }))}
+                    sx={{ 
+                      width: '100%', 
+                      p: 1, 
+                      borderRadius: 1, 
+                      border: '1px solid',
+                      borderColor: 'divider',
+                      bgcolor: 'background.paper',
+                      color: 'text.primary',
+                      fontSize: '14px',
+                      fontFamily: 'inherit',
+                      outline: 'none',
+                      '&:focus': { borderColor: 'primary.main' }
+                    }}
+                  />
+                </Box>
+                <Box>
+                  <Typography variant="caption" color="text.secondary">To</Typography>
+                  <Box component="input"
+                    type="date" 
+                    value={customRange.end}
+                    onChange={(e: any) => setCustomRange(prev => ({ ...prev, end: e.target.value }))}
+                    sx={{ 
+                      width: '100%', 
+                      p: 1, 
+                      borderRadius: 1, 
+                      border: '1px solid',
+                      borderColor: 'divider',
+                      bgcolor: 'background.paper',
+                      color: 'text.primary',
+                      fontSize: '14px',
+                      fontFamily: 'inherit',
+                      outline: 'none',
+                      '&:focus': { borderColor: 'primary.main' }
+                    }}
+                  />
+                </Box>
+              </Box>
+            )}
+            
+            <Divider />
+            <Box sx={{ p: 1, display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
+              <Button size="small" onClick={() => handleRangeChange('all')} sx={{ textTransform: 'none' }}>Clear</Button>
+              <Button size="small" variant="contained" onClick={handleCloseMenu} sx={{ textTransform: 'none' }}>Done</Button>
+            </Box>
+          </Menu>
+
+          {/* Type Menu */}
+          <Menu
+            anchorEl={typeAnchorEl}
+            open={Boolean(typeAnchorEl)}
+            onClose={handleCloseTypeMenu}
+            PaperProps={{
+              sx: { width: 180, borderRadius: 2, mt: 1, boxShadow: theme.shadows[4] }
+            }}
+          >
+            {[
+              { label: 'All', value: 'all' },
+              { label: 'Income', value: 'in' },
+              { label: 'Expense', value: 'out' },
+            ].map((option) => (
+              <MenuItem 
+                key={option.value} 
+                onClick={() => handleTypeChange(option.value as any)}
+                sx={{ py: 0.5 }}
+              >
+                <FormControlLabel
+                  value={option.value}
+                  control={<Radio size="small" checked={expenseType === option.value} />}
+                  label={option.label}
+                  sx={{ width: '100%', m: 0 }}
+                />
+              </MenuItem>
+            ))}
+          </Menu>
+        </Box>
       </Box>
 
       {/* Stats Cards */}
@@ -314,7 +563,7 @@ export default function BookAnalyticsPage() {
                     />
                     <Tooltip 
                       contentStyle={{ borderRadius: 8, border: 'none', boxShadow: theme.shadows[3] }}
-                      formatter={(value: any) => [formatCurrency(Number(value) || 0), '']}
+                      formatter={(value: any, name?: string) => [formatCurrency(Number(value) || 0), name || '']}
                     />
                     <Area 
                       type="monotone" 
@@ -387,9 +636,9 @@ export default function BookAnalyticsPage() {
                           />
                         </Pie>
                         <Tooltip 
-                          formatter={(value: any, name: string) => [
+                          formatter={(value: any, name?: string) => [
                             formatCurrency(Number(value) || 0), 
-                            name
+                            name || ''
                           ]} 
                         />
                       </PieChart>

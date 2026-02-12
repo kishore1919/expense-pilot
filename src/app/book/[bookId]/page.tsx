@@ -41,7 +41,11 @@ import {
   Divider,
   Collapse,
   useTheme,
-  useMediaQuery
+  useMediaQuery,
+  Menu,
+  Radio,
+  FormControlLabel,
+  RadioGroup
 } from '@mui/material';
 import { useParams, useRouter } from 'next/navigation';
 import { doc, getDoc, collection, getDocs, addDoc, updateDoc, writeBatch, query } from "firebase/firestore";
@@ -105,7 +109,11 @@ export default function BookDetailPage() {
   const [showFilters, setShowFilters] = useState(false);
 
   // Filter / Search / Sort / Pagination state
-  const [durationFilter, setDurationFilter] = useState<'all' | '7' | '30' | '365'>('all');
+  const [durationFilter, setDurationFilter] = useState<'today' | 'yesterday' | 'thisMonth' | 'lastMonth' | 'all' | 'custom'>('all');
+  const [customRange, setCustomRange] = useState<{ start: string; end: string }>({ 
+    start: '', 
+    end: '' 
+  });
   const [typeFilter, setTypeFilter] = useState<'all' | 'in' | 'out'>('all');
   const [paymentModeFilter, setPaymentModeFilter] = useState<string>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
@@ -114,6 +122,14 @@ export default function BookDetailPage() {
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [page, setPage] = useState<number>(1);
   const [pageSize, setPageSize] = useState<number>(25);
+
+  const [durAnchorEl, setDurAnchorEl] = useState<null | HTMLElement>(null);
+  const [typeAnchorEl, setTypeAnchorEl] = useState<null | HTMLElement>(null);
+
+  const handleDurClick = (e: React.MouseEvent<HTMLButtonElement>) => setDurAnchorEl(e.currentTarget);
+  const handleDurClose = () => setDurAnchorEl(null);
+  const handleTypeClick = (e: React.MouseEvent<HTMLButtonElement>) => setTypeAnchorEl(e.currentTarget);
+  const handleTypeClose = () => setTypeAnchorEl(null);
 
   const { formatCurrency } = useCurrency();
 
@@ -247,12 +263,52 @@ export default function BookDetailPage() {
 
   const filteredExpenses = useMemo(() => {
     const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
     return expenses.filter(e => {
+      // Apply Duration Filter
       if (durationFilter !== 'all') {
-        const days = parseInt(durationFilter, 10);
-        const daysAgo = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
-        if (!e.createdAt || e.createdAt < daysAgo) return false;
+        if (!e.createdAt) return false;
+        
+        switch (durationFilter) {
+          case 'today':
+            if (e.createdAt < startOfToday) return false;
+            break;
+          case 'yesterday': {
+            const startOfYesterday = new Date(startOfToday);
+            startOfYesterday.setDate(startOfYesterday.getDate() - 1);
+            if (e.createdAt < startOfYesterday || e.createdAt >= startOfToday) return false;
+            break;
+          }
+          case 'thisMonth': {
+            const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+            if (e.createdAt < startOfMonth) return false;
+            break;
+          }
+          case 'lastMonth': {
+            const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+            const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);
+            if (e.createdAt < startOfLastMonth || e.createdAt > endOfLastMonth) return false;
+            break;
+          }
+          case 'custom': {
+            if (!customRange.start || !customRange.end) return true;
+            const parseLocalDate = (dateStr: string, isEnd: boolean) => {
+              const [year, month, day] = dateStr.split('-').map(Number);
+              const d = new Date(year, month - 1, day);
+              if (isEnd) d.setHours(23, 59, 59, 999);
+              else d.setHours(0, 0, 0, 0);
+              return d;
+            };
+
+            const startDate = parseLocalDate(customRange.start, false);
+            const endDate = parseLocalDate(customRange.end, true);
+            if (e.createdAt < startDate || e.createdAt > endDate) return false;
+            break;
+          }
+        }
       }
+
       if (typeFilter !== 'all' && e.type !== typeFilter) return false;
       if (paymentModeFilter !== 'all' && e.paymentMode !== paymentModeFilter) return false;
       if (categoryFilter !== 'all' && e.category !== categoryFilter) return false;
@@ -262,7 +318,7 @@ export default function BookDetailPage() {
       }
       return true;
     });
-  }, [expenses, durationFilter, typeFilter, paymentModeFilter, categoryFilter, searchTerm]);
+  }, [expenses, durationFilter, customRange, typeFilter, paymentModeFilter, categoryFilter, searchTerm]);
 
   const cashIn = useMemo(() => filteredExpenses.reduce((sum, item) => sum + (item.type === 'in' ? item.amount : 0), 0), [filteredExpenses]);
   const cashOut = useMemo(() => filteredExpenses.reduce((sum, item) => sum + (item.type === 'out' ? item.amount : 0), 0), [filteredExpenses]);
@@ -392,37 +448,155 @@ export default function BookDetailPage() {
           flexWrap: 'wrap',
           flexDirection: { xs: 'column', sm: 'row' }
         }}>
-          <FormControl size="small" sx={{ minWidth: { xs: '100%', sm: 160 } }}>
-            <Select
-              value={durationFilter}
-              onChange={(e) => setDurationFilter(e.target.value as 'all' | '7' | '30' | '365')}
-              displayEmpty
-              sx={{ bgcolor: 'background.default' }}
-            >
-              <MenuItem value={'all'}>Duration: All Time</MenuItem>
-              <MenuItem value={'7'}>Last 7 days</MenuItem>
-              <MenuItem value={'30'}>Last 30 days</MenuItem>
-              <MenuItem value={'365'}>Last 12 months</MenuItem>
-            </Select>
-          </FormControl>
+          {/* Duration Button & Menu */}
+          <Button
+            variant="outlined"
+            onClick={handleDurClick}
+            endIcon={<FiChevronDown />}
+            sx={{ 
+              textTransform: 'none', 
+              borderRadius: 2,
+              borderColor: 'divider',
+              color: 'text.primary',
+              minWidth: 160,
+              justifyContent: 'space-between',
+              bgcolor: 'background.default'
+            }}
+          >
+            Duration: {durationFilter === 'all' ? 'All Time' : 
+                       durationFilter === 'today' ? 'Today' :
+                       durationFilter === 'yesterday' ? 'Yesterday' :
+                       durationFilter === 'thisMonth' ? 'This Month' : 
+                       durationFilter === 'lastMonth' ? 'Last Month' :
+                        (customRange.start && customRange.end ?
+                          `${new Date(customRange.start).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })} - ${new Date(customRange.end).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}` :
+                          'Custom Range')}
+          </Button>
+          <Menu
+            anchorEl={durAnchorEl}
+            open={Boolean(durAnchorEl)}
+            onClose={handleDurClose}
+            PaperProps={{ sx: { width: 220, borderRadius: 2, mt: 1 } }}
+          >
+            {[
+              { label: 'All Time', value: 'all' },
+              { label: 'Today', value: 'today' },
+              { label: 'Yesterday', value: 'yesterday' },
+              { label: 'This Month', value: 'thisMonth' },
+              { label: 'Last Month', value: 'lastMonth' },
+            ].map((opt) => (
+              <MenuItem key={opt.value} onClick={() => { setDurationFilter(opt.value as any); handleDurClose(); }} sx={{ py: 0.5 }}>
+                <FormControlLabel
+                  control={<Radio size="small" checked={durationFilter === opt.value} />}
+                  label={opt.label}
+                  sx={{ width: '100%', m: 0 }}
+                />
+              </MenuItem>
+            ))}
+            <MenuItem onClick={() => { setDurationFilter('custom'); setCustomRange({ start: '', end: '' }); }} sx={{ py: 0.5, borderTop: '1px solid', borderColor: 'divider' }}>
+              <FormControlLabel
+                control={<Radio size="small" checked={durationFilter === 'custom'} />}
+                label="Custom"
+                sx={{ width: '100%', m: 0 }}
+              />
+            </MenuItem>
 
-          <FormControl size="small" sx={{ minWidth: { xs: '100%', sm: 140 } }}>
-            <Select
-              value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value as 'all' | 'in' | 'out')}
-              sx={{ bgcolor: 'background.default' }}
-            >
-              <MenuItem value={'all'}>Types: All</MenuItem>
-              <MenuItem value={'in'}>Income</MenuItem>
-              <MenuItem value={'out'}>Expense</MenuItem>
-            </Select>
-          </FormControl>
+            {durationFilter === 'custom' && (
+              <Box 
+                sx={{ p: 2, display: 'flex', flexDirection: 'column', gap: 1.5 }}
+                onClick={(e) => e.stopPropagation()}
+                onKeyDown={(e) => e.stopPropagation()}
+              >
+                <Box>
+                  <Typography variant="caption" color="text.secondary">From</Typography>
+                  <Box component="input"
+                    type="date" 
+                    value={customRange.start}
+                    onChange={(e: any) => setCustomRange(prev => ({ ...prev, start: e.target.value }))}
+                    sx={{ 
+                      width: '100%', 
+                      p: 1, 
+                      borderRadius: 1, 
+                      border: '1px solid',
+                      borderColor: 'divider',
+                      bgcolor: 'background.paper',
+                      color: 'text.primary',
+                      fontSize: '14px',
+                      fontFamily: 'inherit',
+                      outline: 'none',
+                      '&:focus': { borderColor: 'primary.main' }
+                    }}
+                  />
+                </Box>
+                <Box>
+                  <Typography variant="caption" color="text.secondary">To</Typography>
+                  <Box component="input"
+                    type="date" 
+                    value={customRange.end}
+                    onChange={(e: any) => setCustomRange(prev => ({ ...prev, end: e.target.value }))}
+                    sx={{ 
+                      width: '100%', 
+                      p: 1, 
+                      borderRadius: 1, 
+                      border: '1px solid',
+                      borderColor: 'divider',
+                      bgcolor: 'background.paper',
+                      color: 'text.primary',
+                      fontSize: '14px',
+                      fontFamily: 'inherit',
+                      outline: 'none',
+                      '&:focus': { borderColor: 'primary.main' }
+                    }}
+                  />
+                </Box>
+
+              </Box>
+            )}
+          </Menu>
+
+          {/* Type Button & Menu */}
+          <Button
+            variant="outlined"
+            onClick={handleTypeClick}
+            endIcon={<FiChevronDown />}
+            sx={{ 
+              textTransform: 'none', 
+              borderRadius: 2,
+              borderColor: 'divider',
+              color: 'text.primary',
+              minWidth: 140,
+              justifyContent: 'space-between',
+              bgcolor: 'background.default'
+            }}
+          >
+            Types: {typeFilter === 'all' ? 'All' : typeFilter === 'in' ? 'Income' : 'Expense'}
+          </Button>
+          <Menu
+            anchorEl={typeAnchorEl}
+            open={Boolean(typeAnchorEl)}
+            onClose={handleTypeClose}
+            PaperProps={{ sx: { width: 180, borderRadius: 2, mt: 1 } }}
+          >
+            {[
+              { label: 'All', value: 'all' },
+              { label: 'Income', value: 'in' },
+              { label: 'Expense', value: 'out' },
+            ].map((opt) => (
+              <MenuItem key={opt.value} onClick={() => { setTypeFilter(opt.value as any); handleTypeClose(); }} sx={{ py: 0.5 }}>
+                <FormControlLabel
+                  control={<Radio size="small" checked={typeFilter === opt.value} />}
+                  label={opt.label}
+                  sx={{ width: '100%', m: 0 }}
+                />
+              </MenuItem>
+            ))}
+          </Menu>
 
           <FormControl size="small" sx={{ minWidth: { xs: '100%', sm: 160 } }}>
             <Select 
               value={paymentModeFilter} 
               onChange={(e) => setPaymentModeFilter(e.target.value)} 
-              sx={{ bgcolor: 'background.default' }}
+              sx={{ bgcolor: 'background.default', borderRadius: 2 }}
             >
               <MenuItem value={'all'}>Payment Modes: All</MenuItem>
               {Array.from(new Set(expenses.map(e => e.paymentMode || 'Online'))).map(pm => (
@@ -435,7 +609,7 @@ export default function BookDetailPage() {
             <Select 
               value={categoryFilter} 
               onChange={(e) => setCategoryFilter(e.target.value)} 
-              sx={{ bgcolor: 'background.default' }}
+              sx={{ bgcolor: 'background.default', borderRadius: 2 }}
             >
               <MenuItem value={'all'}>Categories: All</MenuItem>
               {Array.from(new Set(expenses.map(e => e.category || 'General'))).map(cat => (
@@ -446,7 +620,8 @@ export default function BookDetailPage() {
 
           <Button 
             fullWidth={isMobile}
-            onClick={() => { setDurationFilter('all'); setTypeFilter('all'); setPaymentModeFilter('all'); setCategoryFilter('all'); setSearchTerm(''); setPage(1); }}
+            onClick={() => { setDurationFilter('all'); setTypeFilter('all'); setPaymentModeFilter('all'); setCategoryFilter('all'); setSearchTerm(''); setPage(1); setCustomRange({ start: '', end: '' }); }}
+            sx={{ textTransform: 'none' }}
           >
             Clear Filters
           </Button>

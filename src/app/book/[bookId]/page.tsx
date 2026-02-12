@@ -44,9 +44,9 @@ import {
   useMediaQuery,
   Menu,
   Radio,
-  FormControlLabel,
-  RadioGroup
+  FormControlLabel
 } from '@mui/material';
+import { Theme } from '@mui/material/styles';
 import { useParams, useRouter } from 'next/navigation';
 import { doc, getDoc, collection, getDocs, addDoc, updateDoc, writeBatch, query } from "firebase/firestore";
 import { auth, db } from '../../../app/firebase'; 
@@ -485,7 +485,7 @@ export default function BookDetailPage() {
               { label: 'This Month', value: 'thisMonth' },
               { label: 'Last Month', value: 'lastMonth' },
             ].map((opt) => (
-              <MenuItem key={opt.value} onClick={() => { setDurationFilter(opt.value as any); handleDurClose(); }} sx={{ py: 0.5 }}>
+              <MenuItem key={opt.value} onClick={() => { setDurationFilter(opt.value as typeof durationFilter); handleDurClose(); }} sx={{ py: 0.5 }}>
                 <FormControlLabel
                   control={<Radio size="small" checked={durationFilter === opt.value} />}
                   label={opt.label}
@@ -512,7 +512,7 @@ export default function BookDetailPage() {
                   <Box component="input"
                     type="date" 
                     value={customRange.start}
-                    onChange={(e: any) => setCustomRange(prev => ({ ...prev, start: e.target.value }))}
+                    onChange={(e) => setCustomRange(prev => ({ ...prev, start: (e.target as HTMLInputElement).value }))}
                     sx={{ 
                       width: '100%', 
                       p: 1, 
@@ -533,7 +533,7 @@ export default function BookDetailPage() {
                   <Box component="input"
                     type="date" 
                     value={customRange.end}
-                    onChange={(e: any) => setCustomRange(prev => ({ ...prev, end: e.target.value }))}
+                    onChange={(e) => setCustomRange(prev => ({ ...prev, end: (e.target as HTMLInputElement).value }))}
                     sx={{ 
                       width: '100%', 
                       p: 1, 
@@ -582,7 +582,7 @@ export default function BookDetailPage() {
               { label: 'Income', value: 'in' },
               { label: 'Expense', value: 'out' },
             ].map((opt) => (
-              <MenuItem key={opt.value} onClick={() => { setTypeFilter(opt.value as any); handleTypeClose(); }} sx={{ py: 0.5 }}>
+              <MenuItem key={opt.value} onClick={() => { setTypeFilter(opt.value as typeof typeFilter); handleTypeClose(); }} sx={{ py: 0.5 }}>
                 <FormControlLabel
                   control={<Radio size="small" checked={typeFilter === opt.value} />}
                   label={opt.label}
@@ -675,9 +675,9 @@ export default function BookDetailPage() {
       {/* --- Summary Cards --- */}
       <Grid container spacing={2} sx={{ mb: 4 }}>
         {[
-          { label: 'Cash In', amount: cashIn, color: 'success.main', icon: <FiPlus size={24} />, bg: (theme: any) => theme.palette.mode === 'dark' ? 'rgba(16, 185, 129, 0.1)' : 'success.light' },
-          { label: 'Cash Out', amount: cashOut, color: 'error.main', icon: <FiMinus size={24} />, bg: (theme: any) => theme.palette.mode === 'dark' ? 'rgba(239, 68, 68, 0.1)' : 'error.light' },
-          { label: 'Net Balance', amount: netBalance, color: 'primary.main', icon: <Typography sx={{ fontWeight: 900, fontSize: 20 }}>=</Typography>, bg: (theme: any) => theme.palette.mode === 'dark' ? 'rgba(129, 140, 248, 0.1)' : 'primary.light' },
+          { label: 'Cash In', amount: cashIn, color: 'success.main', icon: <FiPlus size={24} />, bg: (theme: Theme) => theme.palette.mode === 'dark' ? 'rgba(16, 185, 129, 0.1)' : 'success.light' },
+          { label: 'Cash Out', amount: cashOut, color: 'error.main', icon: <FiMinus size={24} />, bg: (theme: Theme) => theme.palette.mode === 'dark' ? 'rgba(239, 68, 68, 0.1)' : 'error.light' },
+          { label: 'Net Balance', amount: netBalance, color: 'primary.main', icon: <Typography sx={{ fontWeight: 900, fontSize: 20 }}>=</Typography>, bg: (theme: Theme) => theme.palette.mode === 'dark' ? 'rgba(129, 140, 248, 0.1)' : 'primary.light' },
         ].map((stat, idx) => (
           <Grid size={{ xs: 12, sm: 4 }} key={idx}>
             <Paper elevation={0} sx={{ 

@@ -11,28 +11,23 @@ import {
   IconButton, 
   Skeleton, 
   useTheme, 
-  useMediaQuery,
   Paper,
   Divider,
   Button,
   Menu,
   MenuItem,
   Radio,
-  FormControlLabel,
-  RadioGroup
+  FormControlLabel
 } from '@mui/material';
 import { 
   FiChevronLeft, 
   FiTrendingUp, 
   FiTrendingDown, 
-  FiPieChart, 
   FiActivity,
   FiTag,
   FiChevronDown
 } from 'react-icons/fi';
 import { 
-  LineChart, 
-  Line, 
   XAxis, 
   YAxis, 
   CartesianGrid, 
@@ -68,13 +63,12 @@ export default function BookAnalyticsPage() {
   const router = useRouter();
   const [user] = useAuthState(auth);
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
-  const { formatCurrency } = useCurrency();
+  const { formatCurrency, currency } = useCurrency();
 
   const [bookName, setBookName] = useState('');
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
-  const [timeRange, setTimeRange] = useState<'today' | 'yesterday' | 'thisMonth' | 'lastMonth' | 'all' | 'custom'>('all');
+  const [timeRange, setTimeRange] = useState<'today' | 'yesterday' | '7d' | '30d' | '90d' | '1y' | 'thisMonth' | 'lastMonth' | 'all' | 'custom'>('all');
   const [customRange, setCustomRange] = useState<{ start: string; end: string }>({ 
     start: new Date().toISOString().split('T')[0], 
     end: new Date().toISOString().split('T')[0] 
@@ -87,12 +81,12 @@ export default function BookAnalyticsPage() {
     setAnchorEl(event.currentTarget);
   };
 
-  const handleCloseMenu = () => {
-    setAnchorEl(null);
-  };
-
   const handleOpenTypeMenu = (event: React.MouseEvent<HTMLButtonElement>) => {
     setTypeAnchorEl(event.currentTarget);
+  };
+
+  const handleCloseMenu = () => {
+    setAnchorEl(null);
   };
 
   const handleCloseTypeMenu = () => {
@@ -213,7 +207,7 @@ export default function BookAnalyticsPage() {
     }
 
     return base;
-  }, [expenses, timeRange, expenseType]);
+  }, [expenses, timeRange, expenseType, customRange]);
 
   const stats = useMemo(() => {
     const totalIn = filteredExpenses.reduce((sum, e) => sum + (e.type === 'in' ? e.amount : 0), 0);
@@ -226,16 +220,21 @@ export default function BookAnalyticsPage() {
   }, [filteredExpenses]);
 
   const dailyData = useMemo(() => {
-    const map = new Map<string, { date: string; income: number; expense: number }>();
+    const map = new Map<string, { date: string; income: number; expense: number; timestamp: number }>();
     
+    const getDateObj = (d: Date) => ({
+      date: d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }),
+      timestamp: new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime()
+    });
+
     // For ranges that span multiple days, we can initialize them
     if (timeRange === 'thisMonth') {
       const now = new Date();
       const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
       for (let i = 1; i <= daysInMonth; i++) {
         const d = new Date(now.getFullYear(), now.getMonth(), i);
-        const dateStr = d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
-        map.set(dateStr, { date: dateStr, income: 0, expense: 0 });
+        const { date, timestamp } = getDateObj(d);
+        map.set(date, { date, timestamp, income: 0, expense: 0 });
       }
     } else if (timeRange === 'lastMonth') {
       const now = new Date();
@@ -243,46 +242,48 @@ export default function BookAnalyticsPage() {
       const daysInMonth = new Date(now.getFullYear(), now.getMonth(), 0).getDate();
       for (let i = 1; i <= daysInMonth; i++) {
         const d = new Date(startOfLastMonth.getFullYear(), startOfLastMonth.getMonth(), i);
-        const dateStr = d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
-        map.set(dateStr, { date: dateStr, income: 0, expense: 0 });
+        const { date, timestamp } = getDateObj(d);
+        map.set(date, { date, timestamp, income: 0, expense: 0 });
       }
     } else if (timeRange === 'today') {
-      const dateStr = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
-      map.set(dateStr, { date: dateStr, income: 0, expense: 0 });
+      const { date, timestamp } = getDateObj(new Date());
+      map.set(date, { date, timestamp, income: 0, expense: 0 });
     } else if (timeRange === 'yesterday') {
       const d = new Date();
       d.setDate(d.getDate() - 1);
-      const dateStr = d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
-      map.set(dateStr, { date: dateStr, income: 0, expense: 0 });
+      const { date, timestamp } = getDateObj(d);
+      map.set(date, { date, timestamp, income: 0, expense: 0 });
     } else if (timeRange === 'custom') {
-      const start = new Date(customRange.start);
-      const end = new Date(customRange.end);
+      // Parse YYYY-MM-DD as local dates (avoid UTC parsing from Date(string))
+      const parseLocalDate = (dateStr: string) => {
+        const [year, month, day] = dateStr.split('-').map(Number);
+        return new Date(year, month - 1, day);
+      };
+
+      const start = parseLocalDate(customRange.start);
+      const end = parseLocalDate(customRange.end);
       const diffTime = Math.abs(end.getTime() - start.getTime());
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
       
-      // Limit to 365 days to prevent performance issues
       const iterations = Math.min(diffDays, 365);
       for (let i = 0; i <= iterations; i++) {
         const d = new Date(start);
         d.setDate(d.getDate() + i);
-        const dateStr = d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
-        map.set(dateStr, { date: dateStr, income: 0, expense: 0 });
+        const { date, timestamp } = getDateObj(d);
+        map.set(date, { date, timestamp, income: 0, expense: 0 });
       }
     }
 
     filteredExpenses.forEach(e => {
-      const dateStr = e.createdAt.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
-      const current = map.get(dateStr) || { date: dateStr, income: 0, expense: 0 };
+      const { date, timestamp } = getDateObj(e.createdAt);
+      const current = map.get(date) || { date, timestamp, income: 0, expense: 0 };
       if (e.type === 'in') current.income += e.amount;
       else current.expense += e.amount;
-      map.set(dateStr, current);
+      map.set(date, current);
     });
 
-    return Array.from(map.values()).sort((a,b) => {
-      // Small sorting logic needed for some cases where map isn't naturally ordered
-      return 0; // The map usage above for months is ordered by i
-    });
-  }, [filteredExpenses, timeRange]);
+    return Array.from(map.values()).sort((a, b) => a.timestamp - b.timestamp);
+  }, [filteredExpenses, timeRange, customRange]);
 
   const categoryData = useMemo(() => {
     const map = new Map<string, number>();
@@ -346,14 +347,40 @@ export default function BookAnalyticsPage() {
               '&:hover': { borderColor: 'primary.main', bgcolor: 'action.hover' }
             }}
           >
-            Duration: {timeRange === 'all' ? 'All Time' : 
-                       timeRange === 'today' ? 'Today' :
-                       timeRange === 'yesterday' ? 'Yesterday' :
-                       timeRange === 'thisMonth' ? 'This Month' : 
-                       timeRange === 'lastMonth' ? 'Last Month' : 
-                       `${new Date(customRange.start).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })} - ${new Date(customRange.end).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}`}
+            Duration: {(() => {
+              switch (timeRange) {
+                case 'all': return 'All Time';
+                case 'today': return 'Today';
+                case 'yesterday': return 'Yesterday';
+                case '7d': return 'Last 7 Days';
+                case '30d': return 'Last 30 Days';
+                case '90d': return 'Last 90 Days';
+                case '1y': return 'Last 1 Year';
+                case 'thisMonth': return 'This Month';
+                case 'lastMonth': return 'Last Month';
+                case 'custom':
+                  return `${new Date(customRange.start).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })} - ${new Date(customRange.end).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}`;
+                default: return 'All Time';
+              }
+            })()}
           </Button>
 
+          {/* Type Filter trigger button */}
+          <Button
+            variant="outlined"
+            onClick={handleOpenTypeMenu}
+            endIcon={<FiChevronDown />}
+            sx={{ 
+              textTransform: 'none', 
+              borderRadius: 2,
+              borderColor: 'divider',
+              color: 'text.primary',
+              px: { xs: 1, sm: 2 },
+              '&:hover': { borderColor: 'primary.main', bgcolor: 'action.hover' }
+            }}
+          >
+            Types: {expenseType === 'all' ? 'All' : expenseType === 'in' ? 'Income' : 'Expense'}
+          </Button>
 
           {/* Duration Menu */}
           <Menu
@@ -368,12 +395,16 @@ export default function BookAnalyticsPage() {
               { label: 'All Time', value: 'all' },
               { label: 'Today', value: 'today' },
               { label: 'Yesterday', value: 'yesterday' },
+              { label: 'Last 7 Days', value: '7d' },
+              { label: 'Last 30 Days', value: '30d' },
               { label: 'This Month', value: 'thisMonth' },
               { label: 'Last Month', value: 'lastMonth' },
+              { label: 'Last 90 Days', value: '90d' },
+              { label: 'Last 1 Year', value: '1y' },
             ].map((option) => (
               <MenuItem 
                 key={option.value} 
-                onClick={() => handleRangeChange(option.value as any)}
+                onClick={() => handleRangeChange(option.value as typeof timeRange)}
                 sx={{ py: 0.5 }}
               >
                 <FormControlLabel
@@ -404,7 +435,7 @@ export default function BookAnalyticsPage() {
                   <Box component="input"
                     type="date" 
                     value={customRange.start}
-                    onChange={(e: any) => setCustomRange(prev => ({ ...prev, start: e.target.value }))}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCustomRange(prev => ({ ...prev, start: e.target.value }))}
                     sx={{ 
                       width: '100%', 
                       p: 1, 
@@ -425,7 +456,7 @@ export default function BookAnalyticsPage() {
                   <Box component="input"
                     type="date" 
                     value={customRange.end}
-                    onChange={(e: any) => setCustomRange(prev => ({ ...prev, end: e.target.value }))}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCustomRange(prev => ({ ...prev, end: e.target.value }))}
                     sx={{ 
                       width: '100%', 
                       p: 1, 
@@ -467,7 +498,7 @@ export default function BookAnalyticsPage() {
             ].map((option) => (
               <MenuItem 
                 key={option.value} 
-                onClick={() => handleTypeChange(option.value as any)}
+                onClick={() => handleTypeChange(option.value as typeof expenseType)}
                 sx={{ py: 0.5 }}
               >
                 <FormControlLabel
@@ -559,11 +590,19 @@ export default function BookAnalyticsPage() {
                       axisLine={false} 
                       tickLine={false} 
                       tick={{ fontSize: 12, fill: theme.palette.text.secondary }}
-                      tickFormatter={(val) => `\u20B9${val >= 1000 ? (val/1000).toFixed(1) + 'k' : val}`}
+                      tickFormatter={(val) => {
+                        // Use compact notation for currency on the axis
+                        return new Intl.NumberFormat('en-IN', {
+                          style: 'currency',
+                          currency: currency,
+                          notation: 'compact',
+                          maximumFractionDigits: 1,
+                        }).format(val);
+                      }}
                     />
                     <Tooltip 
                       contentStyle={{ borderRadius: 8, border: 'none', boxShadow: theme.shadows[3] }}
-                      formatter={(value: any, name?: string) => [formatCurrency(Number(value) || 0), name || '']}
+                      formatter={(value: string | number | undefined, name?: string) => [formatCurrency(Number(value) || 0), name || '']}
                     />
                     <Area 
                       type="monotone" 
@@ -636,7 +675,7 @@ export default function BookAnalyticsPage() {
                           />
                         </Pie>
                         <Tooltip 
-                          formatter={(value: any, name?: string) => [
+                          formatter={(value: string | number | undefined, name?: string) => [
                             formatCurrency(Number(value) || 0), 
                             name || ''
                           ]} 

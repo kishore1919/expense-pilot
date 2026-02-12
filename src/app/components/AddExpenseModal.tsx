@@ -16,8 +16,6 @@ import {
   ToggleButtonGroup,
   MenuItem,
   Grid,
-  Checkbox,
-  FormControlLabel,
   useMediaQuery,
   useTheme,
 } from '@mui/material';
@@ -213,14 +211,13 @@ export default function AddExpenseModal({
   const [amount, setAmount] = useState('');
   const [type, setType] = useState<'in' | 'out'>(initialType ?? 'out');
   // Helper to get local date and time in ISO format (yyyy-mm-dd and hh:mm)
-  function getLocalDateTime() {
-    const now = new Date();
+  function getLocalDateTime(d: Date = new Date()) {
     const pad = (n: number) => n.toString().padStart(2, '0');
-    const yyyy = now.getFullYear();
-    const mm = pad(now.getMonth() + 1);
-    const dd = pad(now.getDate());
-    const hh = pad(now.getHours());
-    const min = pad(now.getMinutes());
+    const yyyy = d.getFullYear();
+    const mm = pad(d.getMonth() + 1);
+    const dd = pad(d.getDate());
+    const hh = pad(d.getHours());
+    const min = pad(d.getMinutes());
     return {
       date: `${yyyy}-${mm}-${dd}`,
       time: `${hh}:${min}`,
@@ -229,7 +226,6 @@ export default function AddExpenseModal({
 
   const [date, setDate] = useState(() => getLocalDateTime().date);
   const [time, setTime] = useState(() => getLocalDateTime().time);
-  const [showTime, setShowTime] = useState(true);
   const [remarks, setRemarks] = useState('');
   const [category, setCategory] = useState('Misc');
   const [paymentMode, setPaymentMode] = useState('Online');
@@ -306,9 +302,11 @@ export default function AddExpenseModal({
       setDescription(initialExpense.description || '');
       setAmount(String(initialExpense.amount ?? ''));
       setType(initialExpense.type ?? 'out');
-      setDate(initialDate.toISOString().slice(0, 10));
-      setTime(initialDate.toISOString().slice(11, 16));
-      setShowTime(true);
+      
+      const local = getLocalDateTime(initialDate);
+      setDate(local.date);
+      setTime(local.time);
+      
       setRemarks(initialExpense.remarks || '');
       setCategory(initialExpense.category || 'Misc');
       setPaymentMode(initialExpense.paymentMode || 'Online');
@@ -322,7 +320,6 @@ export default function AddExpenseModal({
     setType(initialType ?? 'out');
     setDate(localDate);
     setTime(localTime);
-    setShowTime(true);
     setRemarks('');
     setCategory('Misc');
     setPaymentMode('Online');
@@ -411,7 +408,8 @@ export default function AddExpenseModal({
     setDescription('');
     setAmount('');
     setType('out');
-    setDate(new Date().toISOString().slice(0, 10));
+    const { date: localDate } = getLocalDateTime();
+    setDate(localDate);
     setRemarks('');
     setCategory('Misc');
     setPaymentMode('Online');

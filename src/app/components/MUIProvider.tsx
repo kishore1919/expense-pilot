@@ -41,10 +41,11 @@ export default function MUIProvider({ children }: { children: React.ReactNode })
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
   }, []);
 
-  const theme = useMemo(
+  const theme: ReturnType<typeof createTheme> = useMemo(
     () =>
       createTheme({
         palette: {
@@ -225,7 +226,7 @@ export default function MUIProvider({ children }: { children: React.ReactNode })
               variant: 'outlined',
             },
             styleOverrides: {
-              root: ({ theme }: any) => ({
+              root: ({ theme }) => ({
                 '& .MuiOutlinedInput-root': {
                   borderRadius: 8,
                   backgroundColor: isDarkMode ? '#18181b' : '#FFFFFF',
@@ -257,7 +258,7 @@ export default function MUIProvider({ children }: { children: React.ReactNode })
                 height: 24,
                 padding: 0,
               },
-              switchBase: ({ theme }: any) => ({
+              switchBase: ({ theme }) => ({
                 padding: 2,
                 '&.Mui-checked': {
                   transform: 'translateX(20px)',

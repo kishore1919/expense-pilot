@@ -61,6 +61,7 @@ export default function Sidebar() {
     <>
       {/* Logo Section */}
       <Box
+        onClick={() => router.push('/')}
         sx={{
           p: isCollapsed ? 1.5 : 3,
           display: 'flex',
@@ -71,6 +72,7 @@ export default function Sidebar() {
           borderColor: 'divider',
           minHeight: 72,
           transition: 'all 200ms ease',
+          cursor: 'pointer',
         }}
       >
         <Box

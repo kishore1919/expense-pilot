@@ -109,7 +109,7 @@ export function useBooks(options: UseBooksOptions = {}): UseBooksReturn {
       console.error('Error adding book:', err);
       throw new Error('Failed to create book. Please try again.');
     }
-  }, [user]);
+  }, [user, calculateNet]);
 
   useEffect(() => {
     fetchBooks();

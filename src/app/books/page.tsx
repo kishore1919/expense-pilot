@@ -84,7 +84,7 @@ export default function BooksPage() {
       setAddError(null);
       await addBook(bookName);
       setIsModalOpen(false);
-    } catch (err: any) {
+    } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       setAddError(msg);
     }

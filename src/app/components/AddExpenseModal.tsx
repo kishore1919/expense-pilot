@@ -210,7 +210,22 @@ export default function AddExpenseModal({
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
   const [type, setType] = useState<'in' | 'out'>(initialType ?? 'out');
-  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
+  // Helper to get local date and time in ISO format (yyyy-mm-dd and hh:mm)
+  function getLocalDateTime(d: Date = new Date()) {
+    const pad = (n: number) => n.toString().padStart(2, '0');
+    const yyyy = d.getFullYear();
+    const mm = pad(d.getMonth() + 1);
+    const dd = pad(d.getDate());
+    const hh = pad(d.getHours());
+    const min = pad(d.getMinutes());
+    return {
+      date: `${yyyy}-${mm}-${dd}`,
+      time: `${hh}:${min}`,
+    };
+  }
+
+  const [date, setDate] = useState(() => getLocalDateTime().date);
+  const [time, setTime] = useState(() => getLocalDateTime().time);
   const [remarks, setRemarks] = useState('');
   const [category, setCategory] = useState('Misc');
   const [paymentMode, setPaymentMode] = useState('Online');
@@ -287,7 +302,11 @@ export default function AddExpenseModal({
       setDescription(initialExpense.description || '');
       setAmount(String(initialExpense.amount ?? ''));
       setType(initialExpense.type ?? 'out');
-      setDate(initialDate.toISOString().slice(0, 10));
+      
+      const local = getLocalDateTime(initialDate);
+      setDate(local.date);
+      setTime(local.time);
+      
       setRemarks(initialExpense.remarks || '');
       setCategory(initialExpense.category || 'Misc');
       setPaymentMode(initialExpense.paymentMode || 'Online');
@@ -295,10 +314,12 @@ export default function AddExpenseModal({
       return;
     }
 
+    const { date: localDate, time: localTime } = getLocalDateTime();
     setDescription('');
     setAmount('');
     setType(initialType ?? 'out');
-    setDate(new Date().toISOString().slice(0, 10));
+    setDate(localDate);
+    setTime(localTime);
     setRemarks('');
     setCategory('Misc');
     setPaymentMode('Online');
@@ -324,7 +345,7 @@ export default function AddExpenseModal({
       return;
     }
 
-    const createdAt = new Date(`${date}T00:00:00`);
+    const createdAt = new Date(`${date}T${time}`);
 
     setIsSaving(true);
     try {
@@ -387,7 +408,8 @@ export default function AddExpenseModal({
     setDescription('');
     setAmount('');
     setType('out');
-    setDate(new Date().toISOString().slice(0, 10));
+    const { date: localDate } = getLocalDateTime();
+    setDate(localDate);
     setRemarks('');
     setCategory('Misc');
     setPaymentMode('Online');
@@ -510,44 +532,78 @@ export default function AddExpenseModal({
             sx={{ mb: 3 }}
           />
 
-          {/* Amount and Date */}
-          <Grid container spacing={2} sx={{ mb: 3 }}>
-            <Grid size={{ xs: 12, sm: 7 }}>
-              <TextField
-                id="entry-amount"
-                label={`Amount (${currency})`}
-                type="text"
-                fullWidth
-                required
-                value={amount}
-                onChange={(e) => handleAmountChange(e.target.value)}
-                placeholder="e.g. 10+3 or 50*10%"
-                error={Boolean(amount) && (exceedsDecimalLimit || parsedAmount === null || exceedsMaxAmount)}
-                helperText={
-                  amount
-                    ? exceedsDecimalLimit
-                      ? 'Only up to 2 decimal places are allowed.'
-                      : parsedAmount === null
-                      ? 'Invalid expression. Use +, -, *, /, %, and parentheses.'
-                      : exceedsMaxAmount
-                        ? `Max allowed is ${formatCurrency(MAX_AMOUNT)}.`
+          {/* Amount (moved after description) */}
+          <Box sx={{ mb: 3 }}>
+            <TextField
+              id="entry-amount"
+              label={`Amount (${currency})`}
+              type="text"
+              fullWidth
+              required
+              value={amount}
+              onChange={(e) => handleAmountChange(e.target.value)}
+              placeholder="e.g. 10+3 or 50*10%"
+              error={Boolean(amount) && (exceedsDecimalLimit || parsedAmount === null || exceedsMaxAmount)}
+              helperText={
+                amount
+                  ? exceedsDecimalLimit
+                    ? 'Only up to 2 decimal places are allowed.'
+                    : parsedAmount === null
+                    ? 'Invalid expression. Use +, -, *, /, %, and parentheses.'
+                    : exceedsMaxAmount
+                      ? `Max allowed is ${formatCurrency(MAX_AMOUNT)}.`
                       : `Calculated: ${formatCurrency(parsedAmount)}`
-                    : 'You can type formulas like 10+3, 10+4-7, 10+6/9+10-3, or 10%.'
-                }
-                inputProps={{
-                  inputMode: 'decimal',
-                }}
-              />
-            </Grid>
-            <Grid size={{ xs: 12, sm: 5 }}>
+                  : 'You can type formulas like 10+3, 10+4-7, 10+6/9+10-3, or 10%.'
+              }
+              inputProps={{
+                inputMode: 'decimal',
+              }}
+              sx={{
+                '& .MuiInputBase-input': {
+                  fontSize: '1.4rem',
+                  fontWeight: 700,
+                  padding: '10px 14px',
+                },
+                '& .MuiInputLabel-root': {
+                  fontSize: '0.95rem',
+                },
+              }}
+            />
+          </Box>
+
+          {/* Date and Time (same row, equal size) */}
+          <Grid container spacing={2} sx={{ mb: 3 }}>
+            <Grid size={{ xs: 6 }}>
               <TextField
                 id="entry-date"
                 label="Date"
                 type="date"
                 fullWidth
                 value={date}
-                onChange={(e) => setDate(e.target.value)}
+                onChange={(e) => {
+                  const newDate = e.target.value;
+                  setDate(newDate);
+                  // If creating a new entry and date is today, update time to local time
+                  if (!initialExpense) {
+                    const { date: today, time: nowTime } = getLocalDateTime();
+                    if (newDate === today) {
+                      setTime(nowTime);
+                    }
+                  }
+                }}
                 InputLabelProps={{ shrink: true }}
+              />
+            </Grid>
+            <Grid size={{ xs: 6 }}>
+              <TextField
+                id="entry-time"
+                label="Time"
+                type="time"
+                fullWidth
+                value={time}
+                onChange={(e) => setTime(e.target.value)}
+                InputLabelProps={{ shrink: true }}
+                inputProps={{ step: 60 }}
               />
             </Grid>
           </Grid>
@@ -562,6 +618,15 @@ export default function AddExpenseModal({
                 fullWidth
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
+                SelectProps={{
+                  MenuProps: {
+                    PaperProps: {
+                      sx: {
+                        maxHeight: 250,
+                      },
+                    },
+                  },
+                }}
               >
                 {availableCategories.map((cat) => (
                   <MenuItem key={cat} value={cat}>

@@ -28,6 +28,8 @@ import {
   MenuItem,
   FormControl,
   InputLabel,
+  useMediaQuery,
+  useTheme,
 } from '@mui/material';
 import {
   FiPlus,
@@ -91,6 +93,9 @@ interface BudgetCreateData {
 }
 
 export default function BudgetPage() {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const isTablet = useMediaQuery(theme.breakpoints.down('md'));
   const [user] = useAuthState(auth);
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [books, setBooks] = useState<Book[]>([]);
@@ -354,23 +359,26 @@ export default function BudgetPage() {
       } else {
         // Check for existing budget based on type
         if (budgetType === 'book') {
-          // For book budgets, check if any book budget exists for this book
-          const existingBookBudget = budgets.find(b => 
-            b.bookId === selectedBook && b.budgetType === 'book'
+          // For book budgets, check if any book budget exists for this book with the same period
+          const existingBookBudget = budgets.find(b =>
+            b.bookId === selectedBook && 
+            b.budgetType === 'book' &&
+            b.period === budgetPeriod
           );
           if (existingBookBudget) {
-            setError('A book budget already exists for this book. Please edit the existing budget or create a category budget.');
+            setError(`A book budget for ${budgetPeriod} period already exists for this book. Please edit the existing budget or select a different period.`);
             return;
           }
         } else {
-          // For category budgets, check if this specific category budget exists
-          const existingCategoryBudget = budgets.find(b => 
-            b.bookId === selectedBook && 
-            b.budgetType === 'category' && 
-            b.category === selectedCategory
+          // For category budgets, check if this specific category budget exists for the same period
+          const existingCategoryBudget = budgets.find(b =>
+            b.bookId === selectedBook &&
+            b.budgetType === 'category' &&
+            b.category === selectedCategory &&
+            b.period === budgetPeriod
           );
           if (existingCategoryBudget) {
-            setError(`A ${selectedCategory} budget already exists for this book. Please edit the existing budget.`);
+            setError(`A ${selectedCategory} budget for ${budgetPeriod} period already exists for this book. Please edit the existing budget or select a different period.`);
             return;
           }
         }
@@ -424,7 +432,12 @@ export default function BudgetPage() {
     return { color: 'success', label: 'On Track', icon: <FiCheckCircle size={16} /> };
   };
 
-  const availableBooks = books.filter(book => !budgets.some(b => b.bookId === book.id && b.budgetType === 'book'));
+  // Available books for book budgets - allow if no book budget exists for the selected period
+  const availableBooks = books.filter(book => !budgets.some(b => 
+    b.bookId === book.id && 
+    b.budgetType === 'book' && 
+    b.period === budgetPeriod
+  ));
 
   if (loading) {
     return <Loading />;
@@ -464,38 +477,38 @@ export default function BudgetPage() {
 
       {/* Summary Cards */}
       <Grid container spacing={2} sx={{ mb: 3 }}>
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+        <Grid size={{ xs: 6, sm: 6, md: 3, lg: 3 }}>
           <Card sx={{ height: '100%' }}>
-            <CardContent sx={{ p: 2 }}>
-              <Typography variant="body2" color="text.secondary">
+            <CardContent sx={{ p: { xs: 1.5, sm: 2, md: 2.5 } }}>
+              <Typography variant="caption" color="text.secondary">
                 Total Budget
               </Typography>
-              <Typography variant="h5" fontWeight={600}>
+              <Typography variant={isTablet ? "h6" : "h5"} fontWeight={600}>
                 {formatCurrency(totalBudget)}
               </Typography>
             </CardContent>
           </Card>
         </Grid>
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+        <Grid size={{ xs: 6, sm: 6, md: 3, lg: 3 }}>
           <Card sx={{ height: '100%' }}>
-            <CardContent sx={{ p: 2 }}>
-              <Typography variant="body2" color="text.secondary">
+            <CardContent sx={{ p: { xs: 1.5, sm: 2, md: 2.5 } }}>
+              <Typography variant="caption" color="text.secondary">
                 Total Spent
               </Typography>
-              <Typography variant="h5" fontWeight={600} color="primary.main">
+              <Typography variant={isTablet ? "h6" : "h5"} fontWeight={600} color="primary.main">
                 {formatCurrency(totalSpent)}
               </Typography>
             </CardContent>
           </Card>
         </Grid>
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+        <Grid size={{ xs: 6, sm: 6, md: 3, lg: 3 }}>
           <Card sx={{ height: '100%' }}>
-            <CardContent sx={{ p: 2 }}>
-              <Typography variant="body2" color="text.secondary">
+            <CardContent sx={{ p: { xs: 1.5, sm: 2, md: 2.5 } }}>
+              <Typography variant="caption" color="text.secondary">
                 Remaining
               </Typography>
               <Typography 
-                variant="h5" 
+                variant={isTablet ? "h6" : "h5"} 
                 fontWeight={600} 
                 color={totalBudget - totalSpent >= 0 ? 'success.main' : 'error.main'}
               >
@@ -504,14 +517,14 @@ export default function BudgetPage() {
             </CardContent>
           </Card>
         </Grid>
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+        <Grid size={{ xs: 6, sm: 6, md: 3, lg: 3 }}>
           <Card sx={{ height: '100%' }}>
-            <CardContent sx={{ p: 2 }}>
-              <Typography variant="body2" color="text.secondary">
+            <CardContent sx={{ p: { xs: 1.5, sm: 2, md: 2.5 } }}>
+              <Typography variant="caption" color="text.secondary">
                 Budget Usage
               </Typography>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <Typography variant="h5" fontWeight={600}>
+                <Typography variant={isTablet ? "h6" : "h5"} fontWeight={600}>
                   {overallPercent}%
                 </Typography>
                 {totalSpent > totalBudget ? (
@@ -534,7 +547,14 @@ export default function BudgetPage() {
       {/* Budgets List */}
       <Card>
         <CardContent sx={{ p: 2 }}>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+          <Box sx={{ 
+            display: 'flex', 
+            justifyContent: 'space-between', 
+            alignItems: 'center', 
+            mb: 2,
+            flexWrap: 'wrap',
+            gap: 1
+          }}>
             <Typography variant="h6" fontWeight={600}>
               Budgets
             </Typography>
@@ -561,6 +581,101 @@ export default function BudgetPage() {
                 No budgets created yet.
               </Typography>
             </Paper>
+          ) : isTablet ? (
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              {budgets.map((budget) => {
+                const remaining = budget.amount - budget.spent;
+                const percent = budget.amount > 0 ? Math.min(Math.round((budget.spent / budget.amount) * 100), 100) : 0;
+                const status = getBudgetStatus(budget.spent, budget.amount);
+
+                return (
+                  <Card key={budget.id} variant="outlined" sx={{ borderRadius: 2 }}>
+                    <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
+                        <Box>
+                          <Typography variant="subtitle1" fontWeight={600}>
+                            {budget.bookName}
+                          </Typography>
+                          <Box sx={{ display: 'flex', gap: 1, mt: 0.5 }}>
+                            <Chip 
+                              label={budget.period} 
+                              size="small" 
+                              sx={{ textTransform: 'capitalize' }}
+                            />
+                            {budget.budgetType === 'category' && budget.category && (
+                              <Chip 
+                                label={budget.category} 
+                                size="small" 
+                                color="primary"
+                              />
+                            )}
+                          </Box>
+                        </Box>
+                        <Box sx={{ display: 'flex' }}>
+                          <IconButton
+                            size="small"
+                            onClick={() => handleOpenModal(budget)}
+                          >
+                            <FiEdit2 size={18} />
+                          </IconButton>
+                          <IconButton
+                            size="small"
+                            onClick={() => setDeleteTarget(budget)}
+                            color="error"
+                          >
+                            <FiTrash2 size={18} />
+                          </IconButton>
+                        </Box>
+                      </Box>
+
+                      <Grid container spacing={1} sx={{ mb: 1.5 }}>
+                        <Grid size={{ xs: 6 }}>
+                          <Typography variant="caption" color="text.secondary">Budget</Typography>
+                          <Typography variant="body2" fontWeight={500}>{formatCurrency(budget.amount)}</Typography>
+                        </Grid>
+                        <Grid size={{ xs: 6 }}>
+                          <Typography variant="caption" color="text.secondary">Spent</Typography>
+                          <Typography variant="body2" fontWeight={500}>{formatCurrency(budget.spent)}</Typography>
+                        </Grid>
+                        <Grid size={{ xs: 6 }}>
+                          <Typography variant="caption" color="text.secondary">Remaining</Typography>
+                          <Typography 
+                            variant="body2" 
+                            fontWeight={600}
+                            color={remaining >= 0 ? 'success.main' : 'error.main'}
+                          >
+                            {formatCurrency(remaining)}
+                          </Typography>
+                        </Grid>
+                        <Grid size={{ xs: 6 }}>
+                          <Typography variant="caption" color="text.secondary">Status</Typography>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                            {status.icon}
+                            <Typography variant="body2" fontWeight={500} color={status.color === 'error' ? 'error.main' : status.color === 'warning' ? 'warning.main' : 'success.main'}>
+                              {status.label}
+                            </Typography>
+                          </Box>
+                        </Grid>
+                      </Grid>
+
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Box sx={{ flex: 1 }}>
+                          <LinearProgress
+                            variant="determinate"
+                            value={percent}
+                            color={status.color as 'primary' | 'secondary' | 'error' | 'warning' | 'success' | 'info'}
+                            sx={{ height: 8, borderRadius: 4 }}
+                          />
+                        </Box>
+                        <Typography variant="body2" fontWeight={600}>
+                          {percent}%
+                        </Typography>
+                      </Box>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </Box>
           ) : (
             <TableContainer>
               <Table>
@@ -669,7 +784,13 @@ export default function BudgetPage() {
       </Card>
 
       {/* Add/Edit Budget Modal */}
-      <Dialog open={isModalOpen} onClose={handleCloseModal} maxWidth="sm" fullWidth>
+      <Dialog 
+        open={isModalOpen} 
+        onClose={handleCloseModal} 
+        maxWidth="sm" 
+        fullWidth
+        fullScreen={isMobile}
+      >
         <DialogTitle>
           {editingBudget ? 'Edit Budget' : 'Add Budget'}
         </DialogTitle>
@@ -690,6 +811,7 @@ export default function BudgetPage() {
                   onChange={(e) => {
                     setBudgetType(e.target.value as 'book' | 'category');
                     setSelectedCategory('');
+                    setSelectedBook(''); // Reset selected book when budget type changes
                   }}
                   label="Budget Type"
                 >
@@ -708,7 +830,7 @@ export default function BudgetPage() {
                   onChange={(e) => setSelectedBook(e.target.value)}
                   label="Select Book"
                 >
-                  {/* For book budgets, only show books without existing book budgets */}
+                  {/* For book budgets, only show books without existing book budgets for the selected period */}
                   {/* For category budgets, show all books */}
                   {(budgetType === 'book' ? availableBooks : books).map((book) => (
                     <MenuItem key={book.id} value={book.id}>
@@ -722,9 +844,9 @@ export default function BudgetPage() {
                 <Typography variant="body2" color="text.secondary">Book</Typography>
                 <Typography fontWeight={500}>{editingBudget.bookName}</Typography>
                 {editingBudget.budgetType === 'category' && editingBudget.category && (
-                  <Chip 
-                    label={editingBudget.category} 
-                    size="small" 
+                  <Chip
+                    label={editingBudget.category}
+                    size="small"
                     color="primary"
                     sx={{ mt: 0.5 }}
                   />
@@ -763,7 +885,12 @@ export default function BudgetPage() {
               <InputLabel>Budget Period</InputLabel>
               <Select
                 value={budgetPeriod}
-                onChange={(e) => setBudgetPeriod(e.target.value as 'monthly' | 'weekly' | 'yearly')}
+                onChange={(e) => {
+                  setBudgetPeriod(e.target.value as 'monthly' | 'weekly' | 'yearly');
+                  if (!editingBudget) {
+                    setSelectedBook(''); // Reset selected book when period changes (only when creating new budget)
+                  }
+                }}
                 label="Budget Period"
               >
                 <MenuItem value="monthly">Monthly</MenuItem>

@@ -136,36 +136,71 @@ export default function BudgetPage() {
       const budgetsSnapshot = await getDocs(budgetsQuery);
       
       const budgetsData: Budget[] = [];
-      
+
+      // Group budgets by bookId and fetch each book's expenses once to avoid N+1 queries
+      const uniqueBookIds = Array.from(new Set(budgetsSnapshot.docs.map(d => d.data().bookId)));
+      const bookExpenses = new Map<string, Array<{ amount: number; type?: string; category?: string; createdAt: Date }>>();
+      for (const id of uniqueBookIds) {
+        try {
+          const expensesSnap = await getDocs(collection(db, `books/${id}/expenses`));
+          const arr = expensesSnap.docs.map(ed => {
+            const data = ed.data();
+            return {
+              amount: data.amount || 0,
+              type: data.type || 'out',
+              category: data.category || '',
+              createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(0),
+            };
+          });
+          bookExpenses.set(id, arr);
+        } catch (err) {
+          console.error(`Error fetching expenses for book ${id}:`, err);
+          bookExpenses.set(id, []);
+        }
+      }
+
+      const getPeriodRange = (period: 'monthly' | 'weekly' | 'yearly') => {
+        const now = new Date();
+        if (period === 'weekly') {
+          const cur = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+          const day = (cur.getDay() + 6) % 7; // Monday as start
+          const start = new Date(cur);
+          start.setDate(cur.getDate() - day);
+          start.setHours(0,0,0,0);
+          const end = new Date(start);
+          end.setDate(start.getDate() + 6);
+          end.setHours(23,59,59,999);
+          return { start, end };
+        }
+        if (period === 'yearly') {
+          const start = new Date(now.getFullYear(), 0, 1);
+          const end = new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999);
+          return { start, end };
+        }
+        // monthly (default)
+        const start = new Date(now.getFullYear(), now.getMonth(), 1);
+        const end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+        return { start, end };
+      };
+
       for (const budgetDoc of budgetsSnapshot.docs) {
         const budgetData = budgetDoc.data();
         const bookId = budgetData.bookId;
         const budgetType = budgetData.budgetType || 'book';
-        
-        // Find book name
         const bookName = booksData.find(b => b.id === bookId)?.name || 'Unknown Book';
-        
-        // Calculate spent amount from expenses based on budget type
-        let spent = 0;
-        try {
-          const expensesSnapshot = await getDocs(collection(db, `books/${bookId}/expenses`));
-          expensesSnapshot.forEach(expenseDoc => {
-            const expense = expenseDoc.data();
-            if (expense.type === 'out') {
-              if (budgetType === 'book') {
-                // Book budget: count all expenses
-                spent += expense.amount || 0;
-              } else if (budgetType === 'category' && budgetData.category) {
-                // Category budget: count only matching category expenses
-                if (expense.category === budgetData.category) {
-                  spent += expense.amount || 0;
-                }
-              }
-            }
-          });
-        } catch (e) {
-          console.error('Error fetching expenses:', e);
-        }
+
+        const expensesForBook = bookExpenses.get(bookId) || [];
+        const { start, end } = getPeriodRange(budgetData.period || 'monthly');
+
+        const spent = expensesForBook.reduce((acc, exp) => {
+          if (exp.type !== 'out') return acc;
+          if (budgetType === 'category' && budgetData.category) {
+            if (exp.category !== budgetData.category) return acc;
+          }
+          const created = exp.createdAt instanceof Date ? exp.createdAt : new Date(exp.createdAt);
+          if (created < start || created > end) return acc;
+          return acc + (exp.amount || 0);
+        }, 0);
 
         budgetsData.push({
           id: budgetDoc.id,
@@ -293,7 +328,8 @@ export default function BudgetPage() {
     // Maximum limit: 10 crores (100,000,000)
     const MAX_AMOUNT = 100000000;
     if (amount > MAX_AMOUNT) {
-      setError('Budget amount cannot exceed ₹10 crores.');
+      const currencyPrefix = currency ? `${currency} ` : '';
+      setError(`Budget amount cannot exceed ${currencyPrefix}10 crores.`);
       return;
     }
 
@@ -388,7 +424,7 @@ export default function BudgetPage() {
     return { color: 'success', label: 'On Track', icon: <FiCheckCircle size={16} /> };
   };
 
-  const availableBooks = books.filter(book => !budgets.some(b => b.bookId === book.id));
+  const availableBooks = books.filter(book => !budgets.some(b => b.bookId === book.id && b.budgetType === 'book'));
 
   if (loading) {
     return <Loading />;

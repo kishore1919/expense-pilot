@@ -39,6 +39,7 @@ import {
   MenuItem,
   FormControl,
   Divider,
+  Alert,
   Collapse,
   useTheme,
   useMediaQuery,
@@ -102,7 +103,7 @@ export default function BookDetailPage() {
   const [modalInitialType, setModalInitialType] = useState<'in' | 'out' | undefined>(undefined);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [loading, setLoading] = useState(true);
-  const [, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [deleteTarget, setDeleteTarget] = useState<string | string[] | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -448,6 +449,8 @@ export default function BookDetailPage() {
       </Box>
       
       <Divider sx={{ mb: 3 }} />
+
+      {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
       {/* --- Filter Bar --- */}
       <Collapse in={showFilters || !isMobile}>

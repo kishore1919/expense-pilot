@@ -75,6 +75,15 @@ export default function BookAnalyticsPage() {
   });
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
 
+  const parseLocalDate = (dateStr: string, isEnd = false) => {
+    if (!dateStr) return new Date(NaN);
+    const [year, month, day] = dateStr.split('-').map(Number);
+    const d = new Date(year, month - 1, day);
+    if (isEnd) d.setHours(23, 59, 59, 999);
+    else d.setHours(0, 0, 0, 0);
+    return d;
+  };
+
   const handleOpenMenu = (event: React.MouseEvent<HTMLButtonElement>) => {
     setAnchorEl(event.currentTarget);
   };
@@ -170,15 +179,6 @@ export default function BookAnalyticsPage() {
       }
 
       case 'custom': {
-        // Use local date parsing for custom range to match local createdAt dates
-        const parseLocalDate = (dateStr: string, isEnd: boolean) => {
-          const [year, month, day] = dateStr.split('-').map(Number);
-          const d = new Date(year, month - 1, day);
-          if (isEnd) d.setHours(23, 59, 59, 999);
-          else d.setHours(0, 0, 0, 0);
-          return d;
-        };
-
         const startDate = parseLocalDate(customRange.start, false);
         const endDate = parseLocalDate(customRange.end, true);
         base = base.filter(e => e.createdAt >= startDate && e.createdAt <= endDate);
@@ -234,11 +234,6 @@ export default function BookAnalyticsPage() {
       const { date, timestamp } = getDateObj(d);
       map.set(date, { date, timestamp, income: 0, expense: 0 });
     } else if (timeRange === 'custom') {
-      // Parse YYYY-MM-DD as local dates (avoid UTC parsing from Date(string))
-      const parseLocalDate = (dateStr: string) => {
-        const [year, month, day] = dateStr.split('-').map(Number);
-        return new Date(year, month - 1, day);
-      };
 
       const start = parseLocalDate(customRange.start);
       const end = parseLocalDate(customRange.end);
@@ -344,8 +339,11 @@ export default function BookAnalyticsPage() {
                 case 'yesterday': return 'Yesterday';
                 case 'thisMonth': return 'This Month';
                 case 'lastMonth': return 'Last Month';
-                case 'custom':
-                  return `${new Date(customRange.start).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })} - ${new Date(customRange.end).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}`;
+                case 'custom': {
+                  const start = parseLocalDate(customRange.start);
+                  const end = parseLocalDate(customRange.end);
+                  return `${start.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })} - ${end.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}`;
+                }
                 default: return 'All Time';
               }
             })()}

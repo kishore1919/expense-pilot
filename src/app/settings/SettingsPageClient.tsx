@@ -115,8 +115,8 @@ const CategoryManager: React.FC = () => {
     if (!newCategory.trim() || !user) return;
 
     const name = newCategory.trim();
-    if (CORE_CATEGORIES.some(c => c.toLowerCase() === name.toLowerCase())) {
-      setError('This category already exists in core categories.');
+    if (CORE_CATEGORIES.some(c => c.toLowerCase() === name.toLowerCase()) || categories.some(c => c.name.toLowerCase() === name.toLowerCase())) {
+      setError('This category already exists.');
       return;
     }
 
@@ -148,10 +148,6 @@ const CategoryManager: React.FC = () => {
     try {
       await deleteDoc(doc(db, 'categories', deleteCatTarget));
       setCategories((prev) => prev.filter(c => c.id !== deleteCatTarget));
-      // Adjust page if current page becomes empty after deletion
-      if (totalFiltered > 0 && (totalFiltered - 1) <= (page - 1) * pageSize) {
-        setPage(p => Math.max(1, p - 1));
-      }
       setError(null);
     } catch (err) {
       console.error('Error deleting category:', err);
@@ -185,6 +181,14 @@ const CategoryManager: React.FC = () => {
   useEffect(() => {
     setPage(1);
   }, [filter]);
+
+  // Adjust page when categories / filtered count changes so we don't stay on an empty page
+  useEffect(() => {
+    const filteredCount = filteredCategories.length;
+    if (filteredCount > 0 && filteredCount <= (page - 1) * pageSize) {
+      setPage(p => Math.max(1, p - 1));
+    }
+  }, [filteredCategories, pageSize, page]);
 
   return (
     <Box>

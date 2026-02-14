@@ -73,6 +73,7 @@ interface Book {
 }
 
 interface BudgetUpdateData {
+  [key: string]: any;
   amount: number;
   period: 'monthly' | 'weekly' | 'yearly';
   updatedAt: Date;

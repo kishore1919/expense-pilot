@@ -29,14 +29,12 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  Select,
-  FormControl,
   Divider,
   Alert,
   useTheme,
   useMediaQuery
 } from '@mui/material';
-import { Theme } from '@mui/material/styles';
+
 import { useParams, useRouter } from 'next/navigation';
 import { doc, getDoc, collection, getDocs, addDoc, updateDoc, writeBatch, query } from "firebase/firestore";
 import { auth, db } from '../../../app/firebase'; 
@@ -92,6 +90,7 @@ export default function BookDetailPage() {
   const { bookId } = useParams();
   
   const [bookName, setBookName] = useState('');
+  const [bookType, setBookType] = useState<'personal' | 'ledger'>('ledger');
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalInitialType, setModalInitialType] = useState<'in' | 'out' | undefined>(undefined);
@@ -119,14 +118,6 @@ export default function BookDetailPage() {
   const [page, setPage] = useState<number>(1);
   const [pageSize, setPageSize] = useState<number>(25);
 
-  const [durAnchorEl, setDurAnchorEl] = useState<null | HTMLElement>(null);
-  const [typeAnchorEl, setTypeAnchorEl] = useState<null | HTMLElement>(null);
-
-  const handleDurClick = (e: React.MouseEvent<HTMLButtonElement>) => setDurAnchorEl(e.currentTarget);
-  const handleDurClose = () => setDurAnchorEl(null);
-  const handleTypeClick = (e: React.MouseEvent<HTMLButtonElement>) => setTypeAnchorEl(e.currentTarget);
-  const handleTypeClose = () => setTypeAnchorEl(null);
-
   const { formatCurrency } = useCurrencyStore();
 
   useEffect(() => {
@@ -145,6 +136,7 @@ export default function BookDetailPage() {
             return;
           }
           setBookName(data.name);
+          setBookType(data.type || 'ledger');
           setIsArchived(data.archived ?? false);
         } else {
           router.push('/');
@@ -482,7 +474,7 @@ export default function BookDetailPage() {
             onClick={() => { setEditingExpense(null); setModalInitialType('in'); setIsModalOpen(true); }}
             sx={{ textTransform: 'none', fontWeight: 600 }}
           >
-            Cash In
+            {bookType === 'personal' ? 'Add Income' : 'Cash In'}
           </Button>
           <Button 
             variant="contained" 
@@ -492,7 +484,7 @@ export default function BookDetailPage() {
             onClick={() => { setEditingExpense(null); setModalInitialType('out'); setIsModalOpen(true); }}
             sx={{ textTransform: 'none', fontWeight: 600 }}
           >
-            Cash Out
+            {bookType === 'personal' ? 'Add Expense' : 'Cash Out'}
           </Button>
         </Box>
       </Box>
@@ -516,6 +508,44 @@ export default function BookDetailPage() {
         onPageChange={setPage}
         onPageSizeChange={setPageSize}
       />
+
+      {/* --- Category Breakdown (Personal Only) --- */}
+      {bookType === 'personal' && expenses.length > 0 && (
+        <Paper sx={{ p: 3, mb: 4, borderRadius: 2 }}>
+          <Typography variant="h6" fontWeight={600} sx={{ mb: 2 }}>Category Breakdown</Typography>
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 3 }}>
+            {Object.entries(
+              expenses
+                .filter(e => e.type === 'out')
+                .reduce((acc, curr) => {
+                  const cat = curr.category || 'General';
+                  acc[cat] = (acc[cat] || 0) + curr.amount;
+                  return acc;
+                }, {} as Record<string, number>)
+            )
+              .sort((a, b) => b[1] - a[1])
+              .map(([cat, amt]) => {
+                const percentage = Math.round((amt / cashOut) * 100) || 0;
+                return (
+                  <Box key={cat}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                      <Typography variant="body2" fontWeight={500}>{cat}</Typography>
+                      <Typography variant="body2" fontWeight={600}>{formatCurrency(amt)} ({percentage}%)</Typography>
+                    </Box>
+                    <Box sx={{ height: 8, bgcolor: 'action.hover', borderRadius: 4, overflow: 'hidden' }}>
+                      <Box sx={{ 
+                        height: '100%', 
+                        width: `${percentage}%`, 
+                        bgcolor: 'primary.main',
+                        borderRadius: 4
+                      }} />
+                    </Box>
+                  </Box>
+                );
+              })}
+          </Box>
+        </Paper>
+      )}
 
       {/* --- Table / Card Section --- */}
       {isMobile ? (

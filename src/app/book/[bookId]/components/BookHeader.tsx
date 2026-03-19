@@ -1,10 +1,8 @@
 'use client';
 
-import { Box, Typography, IconButton, Button, Badge } from '@mui/material';
+import { Box, Typography, IconButton, Button } from '@mui/material';
 import { FiChevronLeft, FiArchive, FiBarChart2, FiDownload, FiFilter } from 'react-icons/fi';
-import { useTheme } from '@mui/material/styles';
 import { useRouter } from 'next/navigation';
-import { useParams } from 'next/navigation';
 
 interface BookHeaderProps {
   bookId: string;
@@ -28,7 +26,6 @@ export function BookHeader({
   showFilters
 }: BookHeaderProps) {
   const router = useRouter();
-  const theme = useTheme();
 
   return (
     <Box sx={{

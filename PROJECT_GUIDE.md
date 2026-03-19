@@ -35,7 +35,9 @@ Expense Pilot
 │
 ├─ 🏠 Dashboard (/)                      ← Home page, see everything at once
 │
-├─ 📚 My Books (/books)                  ← List of all your books
+├─ 👤 Personal Tracker (/personal)        ← Traditional expense tracker
+│
+├─ 📚 Other Books (/books)                  ← List of all your additional books
 │   └─ 📖 Book Detail (/book/[id])       ← Inside one book, see expenses
 │       └─ 📊 Analytics (/book/[id]/analytics)  ← Charts for this book
 │

@@ -33,6 +33,7 @@ function docToBook(docSnapshot: { id: string; data: () => DocumentData }): Book 
   return {
     id: docSnapshot.id,
     name: data.name || '',
+    type: data.type || 'ledger',
     createdAt: data.createdAt?.toDate ? data.createdAt.toDate().toLocaleDateString() : undefined,
     createdAtRaw,
     updatedAtString: data.updatedAt?.toDate
@@ -69,9 +70,10 @@ export async function getBookById(bookId: string): Promise<Book | null> {
 /**
  * Create a new book.
  */
-export async function createBook(userId: string, name: string): Promise<string> {
+export async function createBook(userId: string, name: string, type: 'personal' | 'ledger' = 'ledger'): Promise<string> {
   const docRef = await addDoc(collection(db, BOOKS_COLLECTION), {
     name,
+    type,
     userId,
     createdAt: serverTimestamp(),
     archived: false,

@@ -41,6 +41,7 @@ import {
   FiClock,
   FiMenu,
   FiX,
+  FiUser,
 } from 'react-icons/fi';
 import { FaBook } from 'react-icons/fa';
 import { useSidebarStore } from '../stores';
@@ -54,7 +55,8 @@ import { useRouter } from 'next/navigation';
  */
 const menuItems = [
   { icon: FiGrid, name: 'Dashboard', path: '/' },
-  { icon: FiBookOpen, name: 'My Books', path: '/books' },
+  { icon: FiUser, name: 'Personal Tracker', path: '/personal' },
+  { icon: FiBookOpen, name: 'Other Books', path: '/books' },
   { icon: FiTarget, name: 'Budget', path: '/budget' },
   { icon: FiTrendingUp, name: 'Investments', path: '/investments' },
   { icon: FiCreditCard, name: 'Loans', path: '/loans' },

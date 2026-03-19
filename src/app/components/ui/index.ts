@@ -8,6 +8,5 @@ export { EmptyState } from './EmptyState';
 export { ErrorState, NoResultsState, ErrorDisplay } from './ErrorState';
 export { PageHeader } from './PageHeader';
 export { SearchInput } from './SearchInput';
-export { SummaryCard } from './SummaryCard';
 export { TableSkeleton, TableSkeletonWithActions, TableRowSkeleton } from './TableSkeleton';
 export { Pagination } from './Pagination';

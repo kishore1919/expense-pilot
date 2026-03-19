@@ -79,6 +79,7 @@ function BookListItem({
   };
 
   const isArchived = book.archived ?? false;
+  const isDefault = book.isDefaultPersonal ?? false;
 
   return (
     <Paper
@@ -100,19 +101,24 @@ function BookListItem({
       onClick={onClick}
     >
       <Box sx={{ display: 'flex', alignItems: 'center' }}>
-        <Checkbox
-          size="small"
-          checked={isSelected}
-          onChange={handleCheckboxChange}
-          onClick={handleCheckboxClick}
-        />
+        <Tooltip title={isDefault ? "Primary Personal Tracker (cannot be deleted)" : ""}>
+          <span>
+            <Checkbox
+              size="small"
+              checked={isSelected}
+              onChange={handleCheckboxChange}
+              onClick={handleCheckboxClick}
+              disabled={isDefault}
+            />
+          </span>
+        </Tooltip>
       </Box>
       
       <Box sx={{ 
         width: { xs: 36, sm: 48 }, 
         height: { xs: 36, sm: 48 }, 
         borderRadius: '50%', 
-        bgcolor: 'primary.main', 
+        bgcolor: isDefault ? 'secondary.main' : 'primary.main', 
         color: 'primary.contrastText',
         display: 'flex', 
         alignItems: 'center', 
@@ -123,15 +129,33 @@ function BookListItem({
       </Box>
 
       <Box sx={{ flex: 1, minWidth: 0 }}>
-        <Typography 
-          variant="subtitle2" 
-          fontWeight={600} 
-          color="text.primary" 
-          noWrap 
-          sx={{ fontSize: { xs: '0.9rem', sm: '1rem' } }}
-        >
-          {book.name}
-        </Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Typography 
+            variant="subtitle2" 
+            fontWeight={600} 
+            color="text.primary" 
+            noWrap 
+            sx={{ fontSize: { xs: '0.9rem', sm: '1rem' } }}
+          >
+            {book.name}
+          </Typography>
+          {isDefault && (
+            <Box 
+              sx={{ 
+                px: 1, 
+                py: 0.25, 
+                bgcolor: 'secondary.light', 
+                color: 'secondary.dark', 
+                borderRadius: 1, 
+                fontSize: '0.65rem',
+                fontWeight: 700,
+                textTransform: 'uppercase'
+              }}
+            >
+              Default
+            </Box>
+          )}
+        </Box>
         <Typography variant="caption" color="text.secondary" noWrap display="block">
           {book.updatedAtString}
         </Typography>

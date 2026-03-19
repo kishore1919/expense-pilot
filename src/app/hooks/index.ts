@@ -32,6 +32,18 @@ export {
   usePublicRoute
 } from './useAuth';
 
-// Feature-specific hooks
-export { useLoans } from './useLoans';
-export { useSubscriptions } from './useSubscriptions';
+// Feature-specific hooks - using lib/firestore service layer
+export {
+  useLoans,
+  calculateLoanDetails,
+  type UseLoansReturn,
+  type LoanFormData,
+  type LoanSortOption
+} from '../loans/hooks/useLoans';
+
+export {
+  useSubscriptions,
+  type UseSubscriptionsReturn,
+  type SubscriptionFormData,
+  type SubscriptionSortOption
+} from '../subscriptions/hooks/useSubscriptions';

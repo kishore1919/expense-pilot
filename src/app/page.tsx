@@ -4,7 +4,7 @@
  */
 'use client';
 
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { 
@@ -15,8 +15,7 @@ import {
   FiTarget, 
   FiArrowRight,
   FiActivity,
-  FiBriefcase,
-  FiChevronRight
+  FiUser
 } from 'react-icons/fi';
 import {
   Box,
@@ -26,12 +25,9 @@ import {
   Button,
   LinearProgress,
   Paper,
-  Divider,
-  IconButton,
-  Tooltip,
 } from '@mui/material';
 import AddBookModal from './components/AddBookModal';
-import { StatCard, BookCard, BookCardSkeleton } from './components/ui';
+import { StatCard } from './components/ui';
 import { useBooks } from '@/app/hooks/useBooks';
 import { useFinancialOverview } from '@/app/hooks/useFinancialOverview';
 import { useCurrencyStore } from '@/app/stores';
@@ -45,16 +41,16 @@ export default function HomePage() {
   const { user, loading: authLoading } = useProtectedRoute();
   const router = useRouter();
   
-  const { books, loading: booksLoading, error: booksError, addBook } = useBooks({ calculateNet: true });
+  const { loading: booksLoading, error: booksError, addBook } = useBooks({ calculateNet: true });
   const overview = useFinancialOverview();
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
 
-  const handleAddBook = useCallback(async (bookName: string) => {
+  const handleAddBook = useCallback(async (bookName: string, type: 'personal' | 'ledger' = 'personal') => {
     try {
       setAddError(null);
-      await addBook(bookName);
+      await addBook(bookName, type);
       setIsModalOpen(false);
       overview.refetch(); // Refresh overview after adding a book
     } catch (err) {
@@ -68,8 +64,6 @@ export default function HomePage() {
     ? Math.min(Math.round((overview.totalSpent / overview.totalBudget) * 100), 100) 
     : 0;
 
-  const topBooks = useMemo(() => books.slice(0, 4), [books]);
-
   const today = new Date().toLocaleDateString('en-US', { 
     weekday: 'long', 
     year: 'numeric', 
@@ -78,9 +72,9 @@ export default function HomePage() {
   });
 
   const quickActions = [
+    { label: 'Personal Tracker', icon: <FiUser size={18} />, path: '/personal', color: '#6366F1' },
     { label: 'Add Loan', icon: <FiCreditCard size={18} />, path: '/loans', color: '#EF4444' },
     { label: 'New Investment', icon: <FiPieChart size={18} />, path: '/investments', color: '#10B981' },
-    { label: 'Set Budget', icon: <FiTarget size={18} />, path: '/budget', color: '#3B82F6' },
   ];
 
   return (
@@ -103,21 +97,38 @@ export default function HomePage() {
             {today} • Your financial overview is looking {overview.totalNetWorth >= 0 ? 'good' : 'a bit low'} today.
           </Typography>
         </Box>
-        <Button
-          variant="contained"
-          startIcon={<FiPlus />}
-          onClick={() => setIsModalOpen(true)}
-          sx={{ 
-            borderRadius: 2.5, 
-            px: 3, 
-            py: 1, 
-            boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06)',
-            textTransform: 'none',
-            fontWeight: 600
-          }}
-        >
-          New Expense Book
-        </Button>
+        <Box sx={{ display: 'flex', gap: 2 }}>
+          <Button
+            variant="outlined"
+            startIcon={<FiUser />}
+            onClick={() => router.push('/personal')}
+            sx={{ 
+              borderRadius: 2.5, 
+              px: 3, 
+              py: 1, 
+              textTransform: 'none',
+              fontWeight: 600,
+              display: { xs: 'none', sm: 'flex' }
+            }}
+          >
+            Personal Tracker
+          </Button>
+          <Button
+            variant="contained"
+            startIcon={<FiPlus />}
+            onClick={() => setIsModalOpen(true)}
+            sx={{ 
+              borderRadius: 2.5, 
+              px: 3, 
+              py: 1, 
+              boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06)',
+              textTransform: 'none',
+              fontWeight: 600
+            }}
+          >
+            New Book
+          </Button>
+        </Box>
       </Box>
 
       {(booksError || overview.error || addError) && (

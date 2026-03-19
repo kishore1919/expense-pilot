@@ -18,6 +18,17 @@ import { FiChevronDown } from 'react-icons/fi';
 type DurationFilter = 'today' | 'yesterday' | 'thisMonth' | 'lastMonth' | 'all' | 'custom';
 type TypeFilter = 'all' | 'in' | 'out';
 
+interface Expense {
+  id: string;
+  description: string;
+  amount: number;
+  type?: 'in' | 'out';
+  createdAt?: Date;
+  remarks?: string;
+  category?: string;
+  paymentMode?: string;
+}
+
 interface FilterBarProps {
   durationFilter: DurationFilter;
   setDurationFilter: (value: DurationFilter) => void;
@@ -29,7 +40,7 @@ interface FilterBarProps {
   setPaymentModeFilter: (value: string) => void;
   categoryFilter: string;
   setCategoryFilter: (value: string) => void;
-  expenses: any[];
+  expenses: Expense[];
   onClearFilters: () => void;
   isMobile: boolean;
   showFilters: boolean;

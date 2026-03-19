@@ -63,7 +63,7 @@ interface UseBooksWithPaginationReturn {
   totalPages: number;
   startIndex: number;
   endIndex: number;
-  addBook: (name: string) => Promise<void>;
+  addBook: (name: string, type?: 'personal' | 'ledger') => Promise<void>;
   deleteBooks: (target: string | string[]) => Promise<boolean>;
   isDeleting: boolean;
   toggleArchive: (bookId: string, archived: boolean) => Promise<boolean>;
@@ -216,10 +216,12 @@ export function useBooksWithPagination(
           return {
             id: bookDoc.id,
             name: bookData.name,
+            type: bookData.type || 'ledger',
             createdAt: bookData.createdAt,
             updatedAtString: 'Updated recently',
             netBalance,
             archived: bookData.archived ?? false,
+            isDefaultPersonal: bookData.isDefaultPersonal ?? false,
           } as Book;
         })
       );
@@ -245,9 +247,10 @@ export function useBooksWithPagination(
    * The new book is added at the beginning of the list.
    * 
    * @param {string} bookName - The name of the book to create
+   * @param {'personal' | 'ledger'} [type='ledger'] - The type of book to create
    * @throws {Error} If user is not authenticated or creation fails
    */
-  const addBook = useCallback(async (bookName: string) => {
+  const addBook = useCallback(async (bookName: string, type: 'personal' | 'ledger' = 'ledger') => {
     if (!user) return;
     
     try {
@@ -255,6 +258,7 @@ export function useBooksWithPagination(
       const trimmedName = bookName.trim();
       const docRef = await addDoc(collection(db, 'books'), {
         name: trimmedName,
+        type,
         createdAt,
         userId: user.uid,
       });
@@ -263,6 +267,7 @@ export function useBooksWithPagination(
         { 
           id: docRef.id, 
           name: trimmedName,
+          type,
           createdAt: createdAt.toLocaleDateString(),
           createdAtRaw: createdAt,
           updatedAtString: 'Just now', 
@@ -286,11 +291,15 @@ export function useBooksWithPagination(
    */
   const deleteBooks = useCallback(async (target: string | string[]): Promise<boolean> => {
     const idsToDelete = (Array.isArray(target) ? target : [target]).filter(
-      (id): id is string => typeof id === 'string'
+      (id): id is string => {
+        if (typeof id !== 'string') return false;
+        const book = books.find(b => b.id === id);
+        return !book?.isDefaultPersonal;
+      }
     );
     
     if (idsToDelete.length === 0) {
-      setError('No valid items selected for deletion.');
+      setError('Cannot delete the primary Personal Tracker or no valid items selected.');
       return false;
     }
 
@@ -326,7 +335,7 @@ export function useBooksWithPagination(
     } finally {
       setIsDeleting(false);
     }
-  }, []);
+  }, [books]);
 
   /**
    * Toggles the archive status of a book in Firestore.

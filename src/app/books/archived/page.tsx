@@ -2,11 +2,10 @@
 
 import { useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { FiArchive, FiBook, FiArrowLeft, FiEye, FiRefreshCw } from 'react-icons/fi';
+import { FiArchive, FiArrowLeft, FiEye, FiRefreshCw } from 'react-icons/fi';
 import {
   Button,
   Box,
-  Alert,
   Container,
   Typography,
   Paper,
@@ -35,7 +34,7 @@ export default function ArchivedBooksPage() {
   const theme = useTheme();
   const isDarkMode = theme.palette.mode === 'dark';
   const { formatCurrency } = useCurrencyStore();
-  const { loading: authLoading } = useProtectedRoute();
+  useProtectedRoute();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<SortOption>('last-updated');
@@ -45,8 +44,6 @@ export default function ArchivedBooksPage() {
 
   const {
     displayedBooks,
-    loading,
-    error,
     totalPages,
     startIndex,
     endIndex,

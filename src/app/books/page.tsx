@@ -11,6 +11,7 @@ import {
   Checkbox,
   Badge,
   useTheme,
+  Typography,
 } from '@mui/material';
 import AddBookModal from '@/app/components/AddBookModal';
 import { SearchInput } from '@/app/components/ui';
@@ -87,10 +88,10 @@ export default function BooksPage() {
     router.push(`/book/${bookId}`);
   }, [router]);
 
-  const handleAddBook = useCallback(async (bookName: string) => {
+  const handleAddBook = useCallback(async (bookName: string, type: 'personal' | 'ledger' = 'personal') => {
     try {
       setAddError(null);
-      await addBook(bookName);
+      await addBook(bookName, type);
       setIsModalOpen(false);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -127,6 +128,9 @@ export default function BooksPage() {
 
   return (
     <Container maxWidth="lg" sx={{ py: { xs: 2, sm: 4 }, px: { xs: 1, sm: 2 } }}>
+      <Typography variant="h4" fontWeight={700} sx={{ mb: 4 }}>
+        Other Books
+      </Typography>
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mb: 4 }}>
         <Box sx={{
           display: 'flex',
@@ -234,7 +238,7 @@ export default function BooksPage() {
 
       <QuickAddSuggestions
         suggestions={SUGGESTIONS}
-        onSelect={handleAddBook}
+        onSelect={(name) => handleAddBook(name, 'personal')}
       />
 
       <AddBookModal

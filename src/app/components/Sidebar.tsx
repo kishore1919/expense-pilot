@@ -58,7 +58,7 @@ const menuItems = [
   { icon: FiUser, name: 'Personal Tracker', path: '/personal' },
   { icon: FiBookOpen, name: 'Other Books', path: '/books' },
   { icon: FiTarget, name: 'Budget', path: '/budget' },
-  { icon: FiTrendingUp, name: 'Investments', path: '/investments' },
+  // { icon: FiTrendingUp, name: 'Investments', path: '/investments' },
   { icon: FiCreditCard, name: 'Loans', path: '/loans' },
   { icon: FiClock, name: 'Subscriptions', path: '/subscriptions' },
   { icon: FiSettings, name: 'Settings', path: '/settings' },

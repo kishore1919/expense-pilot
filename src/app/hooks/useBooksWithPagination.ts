@@ -117,6 +117,7 @@ function applyBookFiltersAndSort(
   const normalizedQuery = searchQuery.toLowerCase();
 
   let result = books.filter((book) => {
+    if (book.isDefaultPersonal) return false;
     if (!showArchived && book.archived) return false;
     return book.name.toLowerCase().includes(normalizedQuery);
   });

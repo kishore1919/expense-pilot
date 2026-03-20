@@ -25,7 +25,7 @@ import { QuickAddSuggestions } from '@/app/components/books/QuickAddSuggestions'
 import { SelectionToolbar } from '@/app/components/books/SelectionToolbar';
 import type { SortOption, PageSize } from '@/app/types';
 
-const SUGGESTIONS = ['February Expenses', 'Home Expense', 'Project Book', 'Account Book'];
+const SUGGESTIONS = ['Home Expense', 'Project Book', 'Account Book'];
 
 export default function BooksPage() {
   const router = useRouter();

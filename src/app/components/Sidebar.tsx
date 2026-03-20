@@ -36,7 +36,6 @@ import {
   FiChevronRight,
   FiLogOut,
   FiTarget,
-  FiTrendingUp,
   FiCreditCard,
   FiClock,
   FiMenu,

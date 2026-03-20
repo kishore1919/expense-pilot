@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { User } from 'firebase/auth';
 import type { Loan } from '@/app/types';
+import { useProtectedRoute } from '@/app/hooks/useAuth';
 import {
   getUserLoans,
   createLoan as createLoanService,
@@ -25,6 +26,10 @@ export interface UseLoansReturn {
 
   // Statistics
   stats: ReturnType<typeof calculateLoanStats>;
+  totalPrincipal: number;
+  totalPaid: number;
+  totalRemainingInterest: number;
+  totalLiability: number;
 
   // Modal state
   isModalOpen: boolean;
@@ -39,6 +44,9 @@ export interface UseLoansReturn {
   deleteTarget: string | null;
   isDeleting: boolean;
 
+  // Helpers
+  calculateLoanDetails: (loan: Loan) => ReturnType<typeof calculateLoanDetails>;
+
   // Actions
   setSearchQuery: (query: string) => void;
   setSortBy: (sortBy: LoanSortOption) => void;
@@ -52,6 +60,8 @@ export interface UseLoansReturn {
   cancelDelete: () => void;
   confirmDelete: (loanId: string) => void;
   refreshLoans: () => Promise<void>;
+  handleSaveLoan: () => Promise<void>;
+  handleDelete: () => Promise<void>;
 }
 
 export interface LoanFormData {
@@ -121,7 +131,10 @@ export function calculateLoanDetails(loan: Loan) {
  * Custom hook for managing loans data and operations.
  * Handles fetching, CRUD operations, filtering, sorting, and pagination.
  */
-export function useLoans(user: User | null): UseLoansReturn {
+export function useLoans(user?: User | null): UseLoansReturn {
+  const { user: authUser } = useProtectedRoute();
+  const resolvedUser = user ?? authUser;
+
   // Data state
   const [loans, setLoans] = useState<Loan[]>([]);
   const [loading, setLoading] = useState(true);
@@ -150,11 +163,14 @@ export function useLoans(user: User | null): UseLoansReturn {
 
   // Fetch loans from Firestore
   const fetchLoans = useCallback(async () => {
-    if (!user) return;
+    if (!resolvedUser) {
+      setLoading(false);
+      return;
+    }
 
     try {
       setLoading(true);
-      const userLoans = await getUserLoans(user.uid);
+      const userLoans = await getUserLoans(resolvedUser.uid);
       setLoans(userLoans);
       setError(null);
     } catch (err) {
@@ -163,7 +179,7 @@ export function useLoans(user: User | null): UseLoansReturn {
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [resolvedUser]);
 
   useEffect(() => {
     fetchLoans();
@@ -227,6 +243,22 @@ export function useLoans(user: User | null): UseLoansReturn {
   // Calculate statistics
   const stats = useMemo(() => calculateLoanStats(loans), [loans]);
 
+  const totalPrincipal = stats.totalAmount;
+  const totalPaid = stats.totalPaid;
+  const totalRemainingInterest = useMemo(() =>
+    loans.reduce((sum, loan) => {
+      const details = calculateLoanDetails(loan);
+      return sum + (Number.isFinite(details.remainingInterest) ? details.remainingInterest : 0);
+    }, 0),
+  [loans]);
+
+  const totalLiability = useMemo(() =>
+    loans.reduce((sum, loan) => {
+      const details = calculateLoanDetails(loan);
+      return sum + (Number.isFinite(details.totalRemainingPayments) ? details.totalRemainingPayments : 0);
+    }, 0),
+  [loans]);
+
   // Actions
   const openAddModal = useCallback(() => {
     setEditingLoan(null);
@@ -262,7 +294,8 @@ export function useLoans(user: User | null): UseLoansReturn {
   }, [fetchLoans]);
 
   const saveLoan = useCallback(async () => {
-    if (!user) return;
+    const currentUser = resolvedUser;
+    if (!currentUser) return;
     if (!formData.name || !formData.lender || !formData.amount) {
       setError('Please fill in all required fields.');
       return;
@@ -285,7 +318,7 @@ export function useLoans(user: User | null): UseLoansReturn {
           prev.map((l) => (l.id === editingLoan.id ? { ...l, ...loanData } : l))
         );
       } else {
-        await createLoanService(user.uid, loanData);
+        await createLoanService(currentUser.uid, loanData);
         await refreshLoans();
       }
 
@@ -295,7 +328,7 @@ export function useLoans(user: User | null): UseLoansReturn {
       console.error('Error saving loan:', err);
       setError('Failed to save loan. Please try again.');
     }
-  }, [user, formData, editingLoan, closeModal, refreshLoans]);
+  }, [resolvedUser, formData, editingLoan, closeModal, refreshLoans]);
 
   const deleteLoan = useCallback(async () => {
     if (!deleteTarget) return;
@@ -336,6 +369,10 @@ export function useLoans(user: User | null): UseLoansReturn {
 
     // Statistics
     stats,
+    totalPrincipal,
+    totalPaid,
+    totalRemainingInterest,
+    totalLiability,
 
     // Modal state
     isModalOpen,
@@ -350,6 +387,9 @@ export function useLoans(user: User | null): UseLoansReturn {
     deleteTarget,
     isDeleting,
 
+    // Helpers
+    calculateLoanDetails,
+
     // Actions
     setSearchQuery,
     setSortBy,
@@ -363,5 +403,7 @@ export function useLoans(user: User | null): UseLoansReturn {
     cancelDelete,
     confirmDelete,
     refreshLoans,
+    handleSaveLoan: saveLoan,
+    handleDelete: deleteLoan,
   };
 }

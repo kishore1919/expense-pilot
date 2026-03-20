@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { User } from 'firebase/auth';
 import type { Subscription } from '@/app/types';
+import { useProtectedRoute } from '@/app/hooks/useAuth';
 import {
   getUserSubscriptions,
   createSubscription as createSubscriptionService,
@@ -22,12 +23,14 @@ export interface UseSubscriptionsReturn {
   // Filtered and sorted data
   filteredSubscriptions: Subscription[];
   displayedSubscriptions: Subscription[];
+  displayedSubs: Subscription[];
   totalPages: number;
   currentPage: number;
+  activeSubscriptions: Subscription[];
+  activeSubs: Subscription[];
 
   // Statistics
   stats: ReturnType<typeof calculateSubscriptionStats>;
-  activeSubscriptions: Subscription[];
   monthlyTotal: number;
   yearlyTotal: number;
 
@@ -59,6 +62,10 @@ export interface UseSubscriptionsReturn {
   setDeleteTarget: (target: string | null) => void;
   refreshSubscriptions: () => Promise<void>;
   toggleStatus: (subscriptionId: string, newStatus: Subscription['status']) => Promise<void>;
+  handleSaveSub: () => Promise<void>;
+  handleDelete: () => Promise<void>;
+  calculateNextBillingDate: (startDate: string, billingCycle: 'weekly' | 'monthly' | 'yearly') => Date;
+  getStatusColor: (status: Subscription['status']) => 'success' | 'warning' | 'default';
 }
 
 export interface SubscriptionFormData {
@@ -87,7 +94,10 @@ const PAGE_SIZE = 10;
  * Custom hook for managing subscriptions data and operations.
  * Handles fetching, CRUD operations, filtering, sorting, and pagination.
  */
-export function useSubscriptions(user: User | null): UseSubscriptionsReturn {
+export function useSubscriptions(user?: User | null): UseSubscriptionsReturn {
+  const { user: authUser } = useProtectedRoute();
+  const resolvedUser = user ?? authUser;
+
   // Data state
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const [loading, setLoading] = useState(true);
@@ -116,11 +126,14 @@ export function useSubscriptions(user: User | null): UseSubscriptionsReturn {
 
   // Fetch subscriptions from Firestore
   const fetchSubscriptions = useCallback(async () => {
-    if (!user) return;
+    if (!resolvedUser) {
+      setLoading(false);
+      return;
+    }
 
     try {
       setLoading(true);
-      const userSubscriptions = await getUserSubscriptions(user.uid);
+      const userSubscriptions = await getUserSubscriptions(resolvedUser.uid);
       setSubscriptions(userSubscriptions);
       setError(null);
     } catch (err) {
@@ -129,7 +142,7 @@ export function useSubscriptions(user: User | null): UseSubscriptionsReturn {
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [resolvedUser]);
 
   useEffect(() => {
     fetchSubscriptions();
@@ -186,6 +199,35 @@ export function useSubscriptions(user: User | null): UseSubscriptionsReturn {
     return sum + s.amount;
   }, 0), [activeSubscriptions]);
 
+  const calculateNextBillingDate = useCallback((startDate: string, billingCycle: 'weekly' | 'monthly' | 'yearly') => {
+    const subscription = {
+      id: '',
+      name: '',
+      amount: 0,
+      billingCycle,
+      startDate,
+      category: '',
+      status: 'active' as const,
+      userId: '',
+      createdAt: new Date(),
+    } as Subscription;
+
+    return getNextBillingDate(subscription);
+  }, []);
+
+  const getStatusColor = useCallback((status: Subscription['status']) => {
+    switch (status) {
+      case 'active':
+        return 'success';
+      case 'paused':
+        return 'warning';
+      case 'cancelled':
+        return 'default';
+      default:
+        return 'default';
+    }
+  }, []);
+
   // Actions
   const openAddModal = useCallback(() => {
     setEditingSubscription(null);
@@ -217,7 +259,8 @@ export function useSubscriptions(user: User | null): UseSubscriptionsReturn {
   }, []);
 
   const saveSubscription = useCallback(async () => {
-    if (!user) return;
+    const currentUser = resolvedUser;
+    if (!currentUser) return;
     if (!formData.name || !formData.amount || !formData.startDate) {
       setError('Please fill in all required fields.');
       return;
@@ -241,8 +284,8 @@ export function useSubscriptions(user: User | null): UseSubscriptionsReturn {
           )
         );
       } else {
-        const newId = await createSubscriptionService(user.uid, subData);
-        setSubscriptions((prev) => [{ ...subData, userId: user.uid, id: newId }, ...prev]);
+        const newId = await createSubscriptionService(currentUser.uid, subData);
+        setSubscriptions((prev) => [{ ...subData, userId: currentUser.uid, id: newId }, ...prev]);
       }
 
       closeModal();
@@ -251,7 +294,7 @@ export function useSubscriptions(user: User | null): UseSubscriptionsReturn {
       console.error('Error saving subscription:', err);
       setError('Failed to save subscription. Please try again.');
     }
-  }, [user, formData, editingSubscription, closeModal]);
+  }, [resolvedUser, formData, editingSubscription, closeModal]);
 
   const deleteSubscription = useCallback(async () => {
     if (!deleteTarget) return;
@@ -302,12 +345,14 @@ export function useSubscriptions(user: User | null): UseSubscriptionsReturn {
     // Filtered and sorted data
     filteredSubscriptions,
     displayedSubscriptions,
+    activeSubscriptions,
     totalPages,
     currentPage: page,
+    displayedSubs: displayedSubscriptions,
+    activeSubs: activeSubscriptions,
 
     // Statistics
     stats,
-    activeSubscriptions,
     monthlyTotal,
     yearlyTotal,
 
@@ -325,6 +370,10 @@ export function useSubscriptions(user: User | null): UseSubscriptionsReturn {
     deleteTarget,
     isDeleting,
 
+    // Helpers
+    calculateNextBillingDate,
+    getStatusColor,
+
     // Actions
     setSearchQuery,
     setSortBy,
@@ -339,5 +388,7 @@ export function useSubscriptions(user: User | null): UseSubscriptionsReturn {
     setDeleteTarget,
     refreshSubscriptions,
     toggleStatus,
+    handleSaveSub: saveSubscription,
+    handleDelete: deleteSubscription,
   };
 }

@@ -1,17 +1,22 @@
 /**
- * Loading Component - Loading spinner with app branding.
- * Displayed during initial app load and authentication checks.
+ * Loading Component - Simple, elegant loading animation.
+ * Features a minimalist design with smooth, subtle motion.
  */
 'use client';
 
 import React from 'react';
-import { Box, CircularProgress, Typography, keyframes } from '@mui/material';
-import { FaBook } from 'react-icons/fa';
+import { Box, Typography, keyframes, alpha } from '@mui/material';
 
+// Smooth rotation for the ring
+const spin = keyframes`
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+`;
+
+// Subtle fade for the text
 const pulse = keyframes`
-  0% { transform: scale(1); }
-  50% { transform: scale(1.05); }
-  100% { transform: scale(1); }
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 1; }
 `;
 
 export default function Loading() {
@@ -22,68 +27,49 @@ export default function Loading() {
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        minHeight: '80vh',
+        minHeight: '100vh',
         width: '100%',
-        gap: 3
+        bgcolor: 'background.default',
+        gap: 3,
       }}
     >
-      <Box sx={{ position: 'relative', display: 'inline-flex' }}>
-        {/* Background Track */}
-        <CircularProgress
-          variant="determinate"
-          value={100}
-          size={80}
-          thickness={2}
-          sx={{
-            color: (theme) => theme.palette.mode === 'dark' ? 'rgba(99, 102, 241, 0.1)' : 'rgba(99, 102, 241, 0.05)',
-          }}
-        />
-        {/* Spinning Loader */}
-        <CircularProgress
-          variant="indeterminate"
-          size={80}
-          thickness={2}
-          sx={{
-            color: 'primary.main',
-            position: 'absolute',
-            left: 0,
-            animationDuration: '1.5s',
-            '& .MuiCircularProgress-circle': {
-              strokeLinecap: 'round',
-            },
-          }}
-        />
-        {/* Pulsing Logo */}
-        <Box
-          sx={{
-            top: 0,
-            left: 0,
-            bottom: 0,
-            right: 0,
-            position: 'absolute',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            animation: `${pulse} 2s infinite ease-in-out`,
-            color: 'primary.main',
-          }}
-        >
-          <FaBook size={32} />
-        </Box>
-      </Box>
-      <Typography 
-        variant="h6" 
-        sx={{ 
-          fontWeight: 700, 
-          color: 'text.secondary',
-          letterSpacing: '0.2em',
-          textTransform: 'uppercase',
-          fontSize: '0.75rem',
-          animation: `${pulse} 2s infinite ease-in-out`,
+      {/* Minimal Spinner */}
+      <Box
+        sx={{
+          position: 'relative',
+          width: 48,
+          height: 48,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
         }}
       >
-        Expense Pilot
+        <Box
+          sx={{
+            width: '100%',
+            height: '100%',
+            borderRadius: '50%',
+            border: (theme) => `2px solid ${alpha(theme.palette.primary.main, 0.1)}`,
+            borderTopColor: 'primary.main',
+            animation: `${spin} 0.8s linear infinite`,
+          }}
+        />
+      </Box>
+
+      {/* Simple Text */}
+      <Typography
+        variant="body2"
+        sx={{
+          fontWeight: 500,
+          color: 'text.secondary',
+          letterSpacing: '0.05em',
+          animation: `${pulse} 1.5s ease-in-out infinite`,
+        }}
+      >
+        Loading Expenses...
       </Typography>
     </Box>
   );
 }
+
+

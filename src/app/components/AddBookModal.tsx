@@ -27,25 +27,27 @@ import {
   IconButton,
   Typography,
   Box,
+  ToggleButtonGroup,
+  ToggleButton,
 } from '@mui/material';
-import { FiX, FiBook } from 'react-icons/fi';
+import { FiX, FiBook, FiUser, FiList } from 'react-icons/fi';
 
 /**
  * Props for AddBookModal component
  * @interface AddBookModalProps
  * @property {boolean} isOpen - Whether the modal is visible
  * @property {() => void} onClose - Callback when modal should close
- * @property {(bookName: string) => void} onAddBook - Callback with new book name
+ * @property {(bookName: string, type: 'personal' | 'ledger') => void} onAddBook - Callback with new book name and type
  */
 interface AddBookModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onAddBook: (bookName: string) => void;
+  onAddBook: (bookName: string, type: 'personal' | 'ledger') => void;
 }
 
 /**
  * Modal dialog for creating new expense books.
- * Displays a form with name input and helpful description.
+ * Displays a form with name input and style selection.
  * 
  * @param {AddBookModalProps} props - Component props
  * @returns {JSX.Element} Modal dialog component
@@ -53,6 +55,7 @@ interface AddBookModalProps {
 export default function AddBookModal({ isOpen, onClose, onAddBook }: AddBookModalProps) {
   // Form state
   const [bookName, setBookName] = useState('');
+  const [type, setType] = useState<'personal' | 'ledger'>('personal');
   const [error, setError] = useState<string | null>(null);
 
   /**
@@ -65,8 +68,9 @@ export default function AddBookModal({ isOpen, onClose, onAddBook }: AddBookModa
       setError('Please enter a book name');
       return;
     }
-    onAddBook(bookName.trim());
+    onAddBook(bookName.trim(), type);
     setBookName('');
+    setType('personal');
     setError(null);
   };
 
@@ -75,6 +79,7 @@ export default function AddBookModal({ isOpen, onClose, onAddBook }: AddBookModa
    */
   const handleClose = () => {
     setBookName('');
+    setType('personal');
     setError(null);
     onClose();
   };
@@ -111,7 +116,7 @@ export default function AddBookModal({ isOpen, onClose, onAddBook }: AddBookModa
                   <FiBook size={20} />
                 </Box>
                 <Typography variant="h5" fontWeight={600}>
-                  Create New Book
+                  Create Additional Book
                 </Typography>
               </Box>
             </Box>
@@ -138,17 +143,42 @@ export default function AddBookModal({ isOpen, onClose, onAddBook }: AddBookModa
               setBookName(e.target.value);
               setError(null);
             }}
-            placeholder="e.g., Groceries, Vacation, Monthly Budget"
+            placeholder="e.g., Vacation, Project, Business"
             error={!!error}
             helperText={error}
             sx={{
+              mb: 3,
               '& .MuiOutlinedInput-root': {
                 bgcolor: 'background.paper',
               },
             }}
           />
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
-            Books help you organize expenses by purpose, project, or time period.
+          
+          <Typography variant="subtitle2" sx={{ mb: 1.5, fontWeight: 600 }}>
+            Tracking Style
+          </Typography>
+          <ToggleButtonGroup
+            value={type}
+            exclusive
+            onChange={(_, newType) => newType && setType(newType)}
+            fullWidth
+            size="small"
+            sx={{ mb: 2 }}
+          >
+            <ToggleButton value="personal" sx={{ py: 1.5, display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+              <FiUser size={18} />
+              <Typography variant="caption" sx={{ fontWeight: 600, textTransform: 'none' }}>Personal</Typography>
+            </ToggleButton>
+            <ToggleButton value="ledger" sx={{ py: 1.5, display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+              <FiList size={18} />
+              <Typography variant="caption" sx={{ fontWeight: 600, textTransform: 'none' }}>Ledger</Typography>
+            </ToggleButton>
+          </ToggleButtonGroup>
+
+          <Typography variant="body2" color="text.secondary">
+            {type === 'personal' 
+              ? 'Optimized for daily expenses with category tracking (like your main tracker).'
+              : 'Classic ledger style for business or detailed balance tracking.'}
           </Typography>
         </DialogContent>
 

@@ -1,8 +1,8 @@
 'use client';
 
 import React from 'react';
-import { Card, CardContent, Box, Typography, Skeleton } from '@mui/material';
-import { FaBook } from 'react-icons/fa';
+import { Card, CardContent, Box, Typography, Skeleton, Chip } from '@mui/material';
+import { FaUser, FaList } from 'react-icons/fa';
 import type { Book } from '@/app/types';
 
 interface BookCardProps {
@@ -14,6 +14,7 @@ interface BookCardProps {
 export function BookCard({ book, onClick, formatCurrency }: BookCardProps) {
   const isPositive = (book.net ?? 0) >= 0;
   const netValue = book.net !== undefined ? formatCurrency(book.net) : '—';
+  const isPersonal = book.type === 'personal';
 
   return (
     <Card
@@ -35,7 +36,7 @@ export function BookCard({ book, onClick, formatCurrency }: BookCardProps) {
               width: { xs: 40, sm: 48 },
               height: { xs: 40, sm: 48 },
               borderRadius: 2,
-              bgcolor: 'primary.main',
+              bgcolor: isPersonal ? 'secondary.main' : 'primary.main',
               color: 'primary.contrastText',
               display: 'flex',
               alignItems: 'center',
@@ -43,26 +44,34 @@ export function BookCard({ book, onClick, formatCurrency }: BookCardProps) {
               flexShrink: 0,
             }}
           >
-            <FaBook size={18} />
+            {isPersonal ? <FaUser size={18} /> : <FaList size={18} />}
           </Box>
           <Box sx={{ flex: 1, minWidth: 0 }}>
-            <Typography 
-              variant="h6" 
-              noWrap 
-              fontWeight={600}
-              sx={{ 
-                fontSize: { xs: '1rem', sm: '1.125rem' },
-                lineHeight: 1.3,
-              }}
-            >
-              {book.name}
-            </Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+              <Typography 
+                variant="h6" 
+                noWrap 
+                fontWeight={600}
+                sx={{ 
+                  fontSize: { xs: '1rem', sm: '1.125rem' },
+                  lineHeight: 1.3,
+                }}
+              >
+                {book.name}
+              </Typography>
+              <Chip 
+                label={isPersonal ? 'Personal' : 'Ledger'} 
+                size="small" 
+                variant="outlined"
+                color={isPersonal ? 'secondary' : 'primary'}
+                sx={{ height: 20, fontSize: '0.625rem', fontWeight: 700, textTransform: 'uppercase' }}
+              />
+            </Box>
             <Typography 
               variant="body2" 
               color="text.secondary"
               sx={{ 
                 fontSize: { xs: '0.75rem', sm: '0.875rem' },
-                mt: 0.5,
               }}
             >
               Created {book.createdAt}

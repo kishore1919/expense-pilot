@@ -38,7 +38,7 @@ interface UseBooksReturn {
   loading: boolean;
   error: string | null;
   refetch: () => Promise<void>;
-  addBook: (name: string) => Promise<void>;
+  addBook: (name: string, type?: 'personal' | 'ledger') => Promise<void>;
 }
 
 /**
@@ -113,6 +113,7 @@ export function useBooks(options: UseBooksOptions = {}): UseBooksReturn {
           return {
             id: doc.id,
             name: data.name,
+            type: data.type || 'ledger',
             createdAt: createdAtDate ? createdAtDate.toLocaleDateString() : 'Recently',
             createdAtRaw: createdAtDate,
             net,
@@ -141,22 +142,24 @@ export function useBooks(options: UseBooksOptions = {}): UseBooksReturn {
    * Optimistically updates the local state for better UX.
    * 
    * @param {string} name - The name of the book to create
+   * @param {'personal' | 'ledger'} [type='ledger'] - The type of book to create
    * @throws {Error} If user is not authenticated or creation fails
    */
-  const addBook = useCallback(async (name: string): Promise<void> => {
+  const addBook = useCallback(async (name: string, type: 'personal' | 'ledger' = 'ledger'): Promise<void> => {
     if (!user) return;
 
     try {
       const trimmedName = name.trim();
       const docRef = await addDoc(collection(db, 'books'), {
         name: trimmedName,
+        type,
         createdAt: new Date(),
         userId: user.uid,
       });
 
       setBooks((prev) => [
         // Local optimistic entry keeps dashboard responsive right after create.
-        { id: docRef.id, name: trimmedName, createdAt: 'Just now', createdAtRaw: new Date(), net: 0 },
+        { id: docRef.id, name: trimmedName, type, createdAt: 'Just now', createdAtRaw: new Date(), net: 0 },
         ...prev,
       ]);
     } catch (err) {
@@ -168,6 +171,28 @@ export function useBooks(options: UseBooksOptions = {}): UseBooksReturn {
   // Fetch books on mount and when fetchBooks changes
   useEffect(() => {
     fetchBooks();
+  }, [fetchBooks]);
+
+  // Listen for expense updates from child pages
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'expenses-updated') {
+        fetchBooks();
+      }
+    };
+
+    // Also listen for custom events (for same-tab updates)
+    const handleCustomEvent = () => {
+      fetchBooks();
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('expenses-updated', handleCustomEvent);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('expenses-updated', handleCustomEvent);
+    };
   }, [fetchBooks]);
 
   return {

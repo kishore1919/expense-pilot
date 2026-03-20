@@ -28,6 +28,7 @@ import type { Timestamp } from 'firebase/firestore';
 export interface Book {
   id: string;
   name: string;
+  type?: 'personal' | 'ledger';
   createdAt?: string;
   createdAtRaw?: Date | null;
   updatedAtString?: string;
@@ -35,6 +36,7 @@ export interface Book {
   netBalance?: number;
   userId?: string;
   archived?: boolean;
+  isDefaultPersonal?: boolean;
 }
 
 /**

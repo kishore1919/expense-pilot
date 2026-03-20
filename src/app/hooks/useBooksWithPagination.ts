@@ -63,10 +63,17 @@ interface UseBooksWithPaginationReturn {
   totalPages: number;
   startIndex: number;
   endIndex: number;
-  addBook: (name: string) => Promise<void>;
+  addBook: (name: string, type?: 'personal' | 'ledger') => Promise<void>;
   deleteBooks: (target: string | string[]) => Promise<boolean>;
   isDeleting: boolean;
   toggleArchive: (bookId: string, archived: boolean) => Promise<boolean>;
+}
+
+interface PaginationMeta {
+  totalFiltered: number;
+  totalPages: number;
+  startIndex: number;
+  endIndex: number;
 }
 
 /**
@@ -99,6 +106,46 @@ function calculateNetBalance(expenses: Array<{ amount?: unknown; type?: unknown 
     const safeAmount = Number.isFinite(amount) ? amount : 0;
     return expense.type === 'in' ? total + safeAmount : total - safeAmount;
   }, 0);
+}
+
+function applyBookFiltersAndSort(
+  books: Book[],
+  searchQuery: string,
+  sortBy: SortOption,
+  showArchived: boolean
+): Book[] {
+  const normalizedQuery = searchQuery.toLowerCase();
+
+  let result = books.filter((book) => {
+    if (book.isDefaultPersonal) return false;
+    if (!showArchived && book.archived) return false;
+    return book.name.toLowerCase().includes(normalizedQuery);
+  });
+
+  if (sortBy === 'name') {
+    result = [...result].sort((a, b) => a.name.localeCompare(b.name));
+  } else if (sortBy === 'last-updated') {
+    result = [...result].sort((a, b) => getCreatedAtMillis(b.createdAt) - getCreatedAtMillis(a.createdAt));
+  }
+
+  return result;
+}
+
+function getPaginationMeta(totalItems: number, page: number, pageSize: number): PaginationMeta {
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+  const startIndex = totalItems === 0 ? 0 : (page - 1) * pageSize + 1;
+  const endIndex = Math.min(page * pageSize, totalItems);
+
+  return {
+    totalFiltered: totalItems,
+    totalPages,
+    startIndex,
+    endIndex,
+  };
+}
+
+function getPaginatedBooks(books: Book[], page: number, pageSize: number): Book[] {
+  return books.slice((page - 1) * pageSize, page * pageSize);
 }
 
 /**
@@ -155,6 +202,7 @@ export function useBooksWithPagination(
       
       const querySnapshot = await getDocs(q);
 
+      // Fetch each book's expenses to compute live net balance.
       const booksData = await Promise.all(
         querySnapshot.docs.map(async (bookDoc) => {
           const bookData = bookDoc.data();
@@ -169,19 +217,17 @@ export function useBooksWithPagination(
           return {
             id: bookDoc.id,
             name: bookData.name,
+            type: bookData.type || 'ledger',
             createdAt: bookData.createdAt,
             updatedAtString: 'Updated recently',
             netBalance,
             archived: bookData.archived ?? false,
+            isDefaultPersonal: bookData.isDefaultPersonal ?? false,
           } as Book;
         })
       );
 
-      booksData.sort((a, b) => {
-        const dateA = getCreatedAtMillis(a.createdAt);
-        const dateB = getCreatedAtMillis(b.createdAt);
-        return dateB - dateA;
-      });
+      booksData.sort((a, b) => getCreatedAtMillis(b.createdAt) - getCreatedAtMillis(a.createdAt));
 
       setBooks(booksData);
     } catch (err) {
@@ -202,9 +248,10 @@ export function useBooksWithPagination(
    * The new book is added at the beginning of the list.
    * 
    * @param {string} bookName - The name of the book to create
+   * @param {'personal' | 'ledger'} [type='ledger'] - The type of book to create
    * @throws {Error} If user is not authenticated or creation fails
    */
-  const addBook = useCallback(async (bookName: string) => {
+  const addBook = useCallback(async (bookName: string, type: 'personal' | 'ledger' = 'ledger') => {
     if (!user) return;
     
     try {
@@ -212,6 +259,7 @@ export function useBooksWithPagination(
       const trimmedName = bookName.trim();
       const docRef = await addDoc(collection(db, 'books'), {
         name: trimmedName,
+        type,
         createdAt,
         userId: user.uid,
       });
@@ -220,6 +268,7 @@ export function useBooksWithPagination(
         { 
           id: docRef.id, 
           name: trimmedName,
+          type,
           createdAt: createdAt.toLocaleDateString(),
           createdAtRaw: createdAt,
           updatedAtString: 'Just now', 
@@ -243,11 +292,15 @@ export function useBooksWithPagination(
    */
   const deleteBooks = useCallback(async (target: string | string[]): Promise<boolean> => {
     const idsToDelete = (Array.isArray(target) ? target : [target]).filter(
-      (id): id is string => typeof id === 'string'
+      (id): id is string => {
+        if (typeof id !== 'string') return false;
+        const book = books.find(b => b.id === id);
+        return !book?.isDefaultPersonal;
+      }
     );
     
     if (idsToDelete.length === 0) {
-      setError('No valid items selected for deletion.');
+      setError('Cannot delete the primary Personal Tracker or no valid items selected.');
       return false;
     }
 
@@ -283,7 +336,7 @@ export function useBooksWithPagination(
     } finally {
       setIsDeleting(false);
     }
-  }, []);
+  }, [books]);
 
   /**
    * Toggles the archive status of a book in Firestore.
@@ -323,34 +376,19 @@ export function useBooksWithPagination(
    * Uses memoization to avoid recalculating on every render.
    * By default, filters out archived books unless showArchived is true.
    */
-  const filteredAndSortedBooks = useMemo(() => {
-    let result = books.filter((book) => {
-      // Filter out archived books by default
-      if (!showArchived && book.archived) {
-        return false;
-      }
-      return book.name.toLowerCase().includes(searchQuery.toLowerCase());
-    });
+  const filteredAndSortedBooks = useMemo(
+    () => applyBookFiltersAndSort(books, searchQuery, sortBy, showArchived),
+    [books, searchQuery, sortBy, showArchived]
+  );
 
-    if (sortBy === 'name') {
-      result = [...result].sort((a, b) => a.name.localeCompare(b.name));
-    } else if (sortBy === 'last-updated') {
-      result = [...result].sort((a, b) => getCreatedAtMillis(b.createdAt) - getCreatedAtMillis(a.createdAt));
-    }
+  const paginationMeta = useMemo(
+    () => getPaginationMeta(filteredAndSortedBooks.length, page, pageSize),
+    [filteredAndSortedBooks.length, page, pageSize]
+  );
 
-    return result;
-  }, [books, searchQuery, sortBy, showArchived]);
-
-  // Calculate pagination values
-  const totalFiltered = filteredAndSortedBooks.length;
-  const totalPages = Math.max(1, Math.ceil(totalFiltered / pageSize));
-  const startIndex = totalFiltered === 0 ? 0 : (page - 1) * pageSize + 1;
-  const endIndex = Math.min(page * pageSize, totalFiltered);
-  
-  // Slice books for current page display
-  const displayedBooks = filteredAndSortedBooks.slice(
-    (page - 1) * pageSize, 
-    page * pageSize
+  const displayedBooks = useMemo(
+    () => getPaginatedBooks(filteredAndSortedBooks, page, pageSize),
+    [filteredAndSortedBooks, page, pageSize]
   );
 
   return {
@@ -358,10 +396,10 @@ export function useBooksWithPagination(
     displayedBooks,
     loading,
     error,
-    totalFiltered,
-    totalPages,
-    startIndex,
-    endIndex,
+    totalFiltered: paginationMeta.totalFiltered,
+    totalPages: paginationMeta.totalPages,
+    startIndex: paginationMeta.startIndex,
+    endIndex: paginationMeta.endIndex,
     addBook,
     deleteBooks,
     isDeleting,

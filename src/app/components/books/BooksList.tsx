@@ -1,6 +1,6 @@
 'use client';
 
-import { Paper, Box, Typography, Checkbox, Skeleton, IconButton, Tooltip } from '@mui/material';
+import { Paper, Box, Typography, Checkbox, Skeleton, IconButton, Tooltip, useTheme } from '@mui/material';
 import { FiArrowRight } from 'react-icons/fi';
 import { FaBook, FaArchive, FaBoxOpen } from 'react-icons/fa';
 import type { Book } from '@/app/types';
@@ -55,6 +55,9 @@ function BookListItem({
   formatCurrency: (amount: number) => string;
   onToggleArchive?: (bookId: string, archived: boolean) => void;
 }) {
+  const theme = useTheme(); // Hook to access theme mode
+  const isDarkMode = theme.palette.mode === 'dark';
+
   const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     e.stopPropagation();
     onSelect(e.target.checked);
@@ -76,6 +79,7 @@ function BookListItem({
   };
 
   const isArchived = book.archived ?? false;
+  const isDefault = book.isDefaultPersonal ?? false;
 
   return (
     <Paper
@@ -89,27 +93,32 @@ function BookListItem({
         gap: { xs: 1, sm: 2 },
         cursor: 'pointer',
         transition: 'all 0.2s',
-        '&:hover': (theme) => ({
-          bgcolor: theme.palette.mode === 'dark' ? 'background.default' : 'action.hover',
+        '&:hover': {
+          bgcolor: isDarkMode ? 'rgba(255, 255, 255, 0.05)' : 'action.hover',
           boxShadow: 1
-        })
+        }
       }}
       onClick={onClick}
     >
       <Box sx={{ display: 'flex', alignItems: 'center' }}>
-        <Checkbox
-          size="small"
-          checked={isSelected}
-          onChange={handleCheckboxChange}
-          onClick={handleCheckboxClick}
-        />
+        <Tooltip title={isDefault ? "Primary Personal Tracker (cannot be deleted)" : ""}>
+          <span>
+            <Checkbox
+              size="small"
+              checked={isSelected}
+              onChange={handleCheckboxChange}
+              onClick={handleCheckboxClick}
+              disabled={isDefault}
+            />
+          </span>
+        </Tooltip>
       </Box>
       
       <Box sx={{ 
         width: { xs: 36, sm: 48 }, 
         height: { xs: 36, sm: 48 }, 
         borderRadius: '50%', 
-        bgcolor: 'primary.main', 
+        bgcolor: isDefault ? 'secondary.main' : 'primary.main', 
         color: 'primary.contrastText',
         display: 'flex', 
         alignItems: 'center', 
@@ -120,15 +129,33 @@ function BookListItem({
       </Box>
 
       <Box sx={{ flex: 1, minWidth: 0 }}>
-        <Typography 
-          variant="subtitle2" 
-          fontWeight={600} 
-          color="text.primary" 
-          noWrap 
-          sx={{ fontSize: { xs: '0.9rem', sm: '1rem' } }}
-        >
-          {book.name}
-        </Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Typography 
+            variant="subtitle2" 
+            fontWeight={600} 
+            color="text.primary" 
+            noWrap 
+            sx={{ fontSize: { xs: '0.9rem', sm: '1rem' } }}
+          >
+            {book.name}
+          </Typography>
+          {isDefault && (
+            <Box 
+              sx={{ 
+                px: 1, 
+                py: 0.25, 
+                bgcolor: 'secondary.light', 
+                color: 'secondary.dark', 
+                borderRadius: 1, 
+                fontSize: '0.65rem',
+                fontWeight: 700,
+                textTransform: 'uppercase'
+              }}
+            >
+              Default
+            </Box>
+          )}
+        </Box>
         <Typography variant="caption" color="text.secondary" noWrap display="block">
           {book.updatedAtString}
         </Typography>
@@ -144,7 +171,7 @@ function BookListItem({
           {formatCurrency(Math.abs(book.netBalance ?? 0))}
         </Typography>
         {isArchived && (
-          <Typography variant="caption" color="text.secondary" display="block">
+          <Typography variant="caption" color="warning.main" display="block">
             Archived
           </Typography>
         )}
@@ -155,12 +182,16 @@ function BookListItem({
           <Tooltip title={isArchived ? 'Unarchive' : 'Archive'}>
             <IconButton
               size="small"
-              color="default"
               onClick={handleArchiveClick}
               sx={{
-                bgcolor: isArchived ? 'warning.light' : 'grey.100',
+                // Explicit background adjustment for dark mode visibility
+                bgcolor: isArchived 
+                  ? (isDarkMode ? 'rgba(255, 167, 38, 0.2)' : 'warning.light') 
+                  : (isDarkMode ? 'rgba(255, 255, 255, 0.08)' : 'grey.100'),
+                color: isDarkMode ? '#FFD700' : 'inherit', // Force yellow in dark mode
                 '&:hover': {
                   bgcolor: isArchived ? 'warning.main' : 'grey.200',
+                  color: isArchived && isDarkMode ? '#000' : 'inherit'
                 },
               }}
             >

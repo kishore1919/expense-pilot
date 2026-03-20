@@ -36,14 +36,14 @@ import {
   FiChevronRight,
   FiLogOut,
   FiTarget,
-  FiTrendingUp,
   FiCreditCard,
   FiClock,
   FiMenu,
   FiX,
+  FiUser,
 } from 'react-icons/fi';
 import { FaBook } from 'react-icons/fa';
-import { useSidebar } from '../context/SidebarContext';
+import { useSidebarStore } from '../stores';
 import { signOut } from 'firebase/auth';
 import { auth } from '../firebase';
 import { useRouter } from 'next/navigation';
@@ -54,13 +54,81 @@ import { useRouter } from 'next/navigation';
  */
 const menuItems = [
   { icon: FiGrid, name: 'Dashboard', path: '/' },
-  { icon: FiBookOpen, name: 'My Books', path: '/books' },
+  { icon: FiUser, name: 'Personal Tracker', path: '/personal' },
+  { icon: FiBookOpen, name: 'Other Books', path: '/books' },
   { icon: FiTarget, name: 'Budget', path: '/budget' },
-  { icon: FiTrendingUp, name: 'Investments', path: '/investments' },
+  // { icon: FiTrendingUp, name: 'Investments', path: '/investments' },
   { icon: FiCreditCard, name: 'Loans', path: '/loans' },
   { icon: FiClock, name: 'Subscriptions', path: '/subscriptions' },
   { icon: FiSettings, name: 'Settings', path: '/settings' },
 ];
+
+/**
+ * Memoized menu item component to prevent unnecessary re-renders
+ */
+const MenuItemButton = React.memo(function MenuItemButton({
+  item,
+  isActive,
+  isCollapsed,
+}: {
+  item: typeof menuItems[0];
+  isActive: boolean;
+  isCollapsed: boolean;
+}) {
+  return (
+    <ListItem disablePadding sx={{ mb: 0.5 }}>
+      <Tooltip
+        title={isCollapsed ? item.name : ''}
+        placement="right"
+        arrow
+      >
+        <ListItemButton
+          component={Link}
+          href={item.path}
+          selected={isActive}
+          sx={{
+            borderRadius: 2,
+            py: 1.5,
+            px: isCollapsed ? 1.5 : 2,
+            justifyContent: isCollapsed ? 'center' : 'flex-start',
+            transition: 'all 150ms ease',
+            '&.Mui-selected': {
+              bgcolor: 'primary.main',
+              color: 'primary.contrastText',
+              '&:hover': {
+                bgcolor: 'primary.dark',
+              },
+              '& .MuiListItemIcon-root': {
+                color: 'primary.contrastText',
+              },
+            },
+            '&:hover': {
+              bgcolor: isActive ? 'primary.dark' : 'action.hover',
+            },
+          }}
+        >
+          <ListItemIcon
+            sx={{
+              minWidth: isCollapsed ? 0 : 40,
+              color: isActive ? 'inherit' : 'text.secondary',
+              justifyContent: 'center',
+            }}
+          >
+            <item.icon size={22} />
+          </ListItemIcon>
+          {!isCollapsed && (
+            <ListItemText
+              primary={item.name}
+              primaryTypographyProps={{
+                fontWeight: isActive ? 600 : 500,
+              }}
+            />
+          )}
+        </ListItemButton>
+      </Tooltip>
+    </ListItem>
+  );
+});
 
 /**
  * Mobile navigation menu items - simplified for mobile view
@@ -74,7 +142,8 @@ const mobileMenuItems = [
 export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
-  const { isCollapsed, setIsCollapsed, sidebarWidth } = useSidebar();
+  const { isCollapsed, setIsCollapsed } = useSidebarStore();
+  const sidebarWidth = useSidebarStore((state) => state.isCollapsed ? 72 : 260);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const handleLogout = async () => {
@@ -142,57 +211,12 @@ export default function Sidebar() {
         {menuItems.map((item) => {
           const isActive = pathname === item.path;
           return (
-            <ListItem key={item.name} disablePadding sx={{ mb: 0.5 }}>
-              <Tooltip
-                title={isCollapsed ? item.name : ''}
-                placement="right"
-                arrow
-              >
-                <ListItemButton
-                  component={Link}
-                  href={item.path}
-                  selected={isActive}
-                  sx={{
-                    borderRadius: 2,
-                    py: 1.5,
-                    px: isCollapsed ? 1.5 : 2,
-                    justifyContent: isCollapsed ? 'center' : 'flex-start',
-                    transition: 'all 150ms ease',
-                    '&.Mui-selected': {
-                      bgcolor: 'primary.main',
-                      color: 'primary.contrastText',
-                      '&:hover': {
-                        bgcolor: 'primary.dark',
-                      },
-                      '& .MuiListItemIcon-root': {
-                        color: 'primary.contrastText',
-                      },
-                    },
-                    '&:hover': {
-                      bgcolor: isActive ? 'primary.dark' : 'action.hover',
-                    },
-                  }}
-                >
-                  <ListItemIcon
-                    sx={{
-                      minWidth: isCollapsed ? 0 : 40,
-                      color: isActive ? 'inherit' : 'text.secondary',
-                      justifyContent: 'center',
-                    }}
-                  >
-                    <item.icon size={22} />
-                  </ListItemIcon>
-                  {!isCollapsed && (
-                    <ListItemText
-                      primary={item.name}
-                      primaryTypographyProps={{
-                        fontWeight: isActive ? 600 : 500,
-                      }}
-                    />
-                  )}
-                </ListItemButton>
-              </Tooltip>
-            </ListItem>
+            <MenuItemButton
+              key={item.name}
+              item={item}
+              isActive={isActive}
+              isCollapsed={isCollapsed}
+            />
           );
         })}
       </List>

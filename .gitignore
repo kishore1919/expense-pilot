@@ -10,9 +10,6 @@
 !.yarn/releases
 !.yarn/versions
 
-# testing
-/coverage
-
 # next.js
 /.next/
 /out/
@@ -28,28 +25,13 @@
 .vscode/
 .idea/
 
-# Playwright reports
-playwright-report/
-
-# Docker
-# Dockerfile
-# .dockerignore
-
 # debug
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# environment-specific
-.claude/
-firebase-debug.log
-nul
-
-# local test results
-test-results/
-
-# env files (can opt-in for committing if needed)
+# env files
 .env*
 
 # vercel

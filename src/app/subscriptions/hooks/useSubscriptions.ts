@@ -25,6 +25,7 @@ export interface UseSubscriptionsReturn {
   displayedSubscriptions: Subscription[];
   displayedSubs: Subscription[];
   totalPages: number;
+  page: number;
   currentPage: number;
   activeSubscriptions: Subscription[];
   activeSubs: Subscription[];
@@ -37,6 +38,7 @@ export interface UseSubscriptionsReturn {
   // Modal state
   isModalOpen: boolean;
   editingSubscription: Subscription | null;
+  editingSub: Subscription | null;
   formData: SubscriptionFormData;
   setIsModalOpen: (open: boolean) => void;
 
@@ -347,6 +349,7 @@ export function useSubscriptions(user?: User | null): UseSubscriptionsReturn {
     displayedSubscriptions,
     activeSubscriptions,
     totalPages,
+    page,
     currentPage: page,
     displayedSubs: displayedSubscriptions,
     activeSubs: activeSubscriptions,
@@ -359,6 +362,7 @@ export function useSubscriptions(user?: User | null): UseSubscriptionsReturn {
     // Modal state
     isModalOpen,
     editingSubscription,
+    editingSub: editingSubscription,
     formData,
     setIsModalOpen,
 

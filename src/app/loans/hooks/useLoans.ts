@@ -22,9 +22,11 @@ export interface UseLoansReturn {
   filteredLoans: Loan[];
   displayedLoans: Loan[];
   totalPages: number;
+  page: number;
   currentPage: number;
 
-  // Statistics
+  // Modal state
+  setIsModalOpen: (open: boolean) => void;
   stats: ReturnType<typeof calculateLoanStats>;
   totalPrincipal: number;
   totalPaid: number;
@@ -43,6 +45,7 @@ export interface UseLoansReturn {
   // Delete state
   deleteTarget: string | null;
   isDeleting: boolean;
+  setDeleteTarget: (target: string | null) => void;
 
   // Helpers
   calculateLoanDetails: (loan: Loan) => ReturnType<typeof calculateLoanDetails>;
@@ -365,6 +368,7 @@ export function useLoans(user?: User | null): UseLoansReturn {
     filteredLoans,
     displayedLoans,
     totalPages,
+    page,
     currentPage: page,
 
     // Statistics
@@ -376,6 +380,7 @@ export function useLoans(user?: User | null): UseLoansReturn {
 
     // Modal state
     isModalOpen,
+    setIsModalOpen,
     editingLoan,
     formData,
 
@@ -385,6 +390,7 @@ export function useLoans(user?: User | null): UseLoansReturn {
 
     // Delete state
     deleteTarget,
+    setDeleteTarget,
     isDeleting,
 
     // Helpers

@@ -372,6 +372,39 @@ export function useBooksWithPagination(
   }, []);
 
   /**
+   * Toggles the archive status of a book in Firestore.
+   * Archived books are hidden from default views but can be restored.
+   *
+   * @param {string} bookId - The ID of the book to archive/unarchive
+   * @param {boolean} archived - The new archive status (true = archive, false = unarchive)
+   * @returns {Promise<boolean>} True if update was successful, false otherwise
+   */
+  const toggleArchive = useCallback(async (bookId: string, archived: boolean): Promise<boolean> => {
+    if (!bookId) {
+      setError('Invalid book ID.');
+      return false;
+    }
+
+    try {
+      const bookRef = doc(db, 'books', bookId);
+      await updateDoc(bookRef, { archived });
+
+      setBooks((prev) =>
+        prev.map((book) =>
+          book.id === bookId ? { ...book, archived } : book
+        )
+      );
+      setError(null);
+      return true;
+    } catch (err) {
+      console.error('Error toggling archive status:', err);
+      const msg = err instanceof Error ? err.message : String(err);
+      setError(`Failed to update archive status: ${msg}`);
+      return false;
+    }
+  }, []);
+
+  /**
    * Filters books by search query and sorts based on the selected option.
    * Uses memoization to avoid recalculating on every render.
    * By default, filters out archived books unless showArchived is true.

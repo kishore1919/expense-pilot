@@ -74,7 +74,6 @@ export default function HomePage() {
   const quickActions = [
     { label: 'Personal Tracker', icon: <FiUser size={18} />, path: '/personal', color: '#6366F1' },
     { label: 'Add Loan', icon: <FiCreditCard size={18} />, path: '/loans', color: '#EF4444' },
-    { label: 'New Investment', icon: <FiPieChart size={18} />, path: '/investments', color: '#10B981' },
   ];
 
   return (
@@ -255,63 +254,6 @@ export default function HomePage() {
           </Grid>
         ))}
       </Grid>
-
-      {/* Financial Insight Banner */}
-      <Paper 
-        sx={{ 
-          p: { xs: 3, sm: 4 }, 
-          borderRadius: 4, 
-          bgcolor: 'primary.main', 
-          color: 'primary.contrastText',
-          boxShadow: '0 10px 25px -5px rgba(99, 102, 241, 0.4)',
-          display: 'flex',
-          flexDirection: { xs: 'column', sm: 'row' },
-          alignItems: { xs: 'flex-start', sm: 'center' },
-          justifyContent: 'space-between',
-          gap: 3,
-          position: 'relative',
-          overflow: 'hidden',
-          '&::after': {
-            content: '""',
-            position: 'absolute',
-            top: -20,
-            right: -20,
-            width: 120,
-            height: 120,
-            borderRadius: '50%',
-            bgcolor: 'rgba(255,255,255,0.1)',
-          }
-        }}
-      >
-        <Box sx={{ maxWidth: 600 }}>
-          <Typography variant="subtitle2" sx={{ opacity: 0.9, mb: 1, fontWeight: 700, letterSpacing: 1 }}>
-            SMART INSIGHT
-          </Typography>
-          <Typography variant="h5" fontWeight={700} sx={{ mb: 1 }}>
-            Ready for a deep dive into your spending?
-          </Typography>
-          <Typography variant="body1" sx={{ opacity: 0.9 }}>
-            Our advanced analytics helps you identify trends and save up to 20% more each month by tracking impulse purchases.
-          </Typography>
-        </Box>
-        <Button 
-          variant="contained" 
-          sx={{ 
-            bgcolor: 'white', 
-            color: 'primary.main',
-            px: 4,
-            py: 1.5,
-            '&:hover': { bgcolor: 'rgba(255,255,255,0.9)' },
-            fontWeight: 700,
-            textTransform: 'none',
-            borderRadius: 3,
-            whiteSpace: 'nowrap'
-          }}
-          onClick={() => router.push('/analytics')}
-        >
-          View Detailed Analytics
-        </Button>
-      </Paper>
 
       {/* Books Section */}
       <AddBookModal

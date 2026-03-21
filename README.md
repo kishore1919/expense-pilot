@@ -123,6 +123,41 @@ bun run dev
 
 6. **Open [http://localhost:3000](http://localhost:3000)** 🎉
 
+## 🐳 Docker
+
+Build and run the app in a container:
+
+```bash
+docker build -t expense-pilot .
+docker run -p 3000:3000 expense-pilot
+```
+
+Or with environment variables:
+
+```bash
+docker run -p 3000:3000 \
+  -e NEXT_PUBLIC_FIREBASE_API_KEY=your_key \
+  -e NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com \
+  -e NEXT_PUBLIC_FIREBASE_PROJECT_ID=your_project_id \
+  -e NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your_project.appspot.com \
+  -e NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=123456789 \
+  -e NEXT_PUBLIC_FIREBASE_APP_ID=1:123456:web:abcdef \
+  expense-pilot
+```
+
+## 🔥 Setting Up a Firebase Project
+
+1. Go to [Firebase Console](https://console.firebase.google.com) and click **Add project**
+2. Enter a project name (e.g., "expense-pilot") and click **Continue**
+3. Disable Google Analytics (optional) and click **Create project**
+4. Once created, click **Build > Firestore Database > Create database**
+5. Choose **Start in test mode** and select a region, then click **Enable**
+6. Go to **Build > Authentication > Get started**
+7. Enable **Email/Password** sign-in method and/or **Google** sign-in
+8. Go to **Project Settings** (gear icon) > **General** > **Your apps**
+9. Click the **Web** icon (`</>`), register your app, and copy the Firebase config
+10. Paste the config values into your `.env.local` file
+
 ## 📖 Usage Guide
 
 ### Creating Your First Book

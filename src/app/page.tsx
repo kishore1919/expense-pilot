@@ -160,15 +160,6 @@ export default function HomePage() {
         </Grid>
         <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <StatCard
-            title="Investments"
-            value={formatCurrency(overview.totalInvestments)}
-            icon={<FiPieChart size={20} />}
-            iconBgColor="success.main"
-            loading={loading}
-          />
-        </Grid>
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-          <StatCard
             title="Budget Usage"
             value={`${budgetProgress}%`}
             icon={<FiTarget size={20} />}

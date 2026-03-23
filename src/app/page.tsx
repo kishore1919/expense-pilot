@@ -11,7 +11,6 @@ import {
   FiPlus, 
   FiTrendingUp, 
   FiCreditCard, 
-  FiPieChart, 
   FiTarget, 
   FiArrowRight,
   FiActivity,

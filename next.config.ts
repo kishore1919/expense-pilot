@@ -2,7 +2,7 @@ import type { NextConfig } from "next";
 import path from 'path';
 
 const nextConfig: NextConfig & { turbopack?: { root?: string } } = {
-  /* config options here */
+  output: 'standalone',
   turbopack: {
     root: path.resolve(__dirname)
   }

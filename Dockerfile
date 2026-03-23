@@ -1,39 +1,42 @@
-# Multi-stage Dockerfile for Next.js application using Bun (canary)
+# Multi-stage Dockerfile for Next.js application using Bun
 
-# Stage 1: Build the application
+# Stage 1: Install dependencies
+FROM oven/bun:canary-alpine AS deps
+
+WORKDIR /app
+
+COPY package.json bun.lock ./
+RUN bun install --frozen-lockfile
+
+# Stage 2: Build the application
 FROM oven/bun:canary-alpine AS builder
 
 WORKDIR /app
 
-# Copy package files first for better caching
-COPY package.json bun.lock* ./
-
-# Install dependencies using bun
-RUN bun install --frozen-lockfile
-
-# Copy the rest of the application
+COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Build the application
 RUN bun run build
 
-# Stage 2: Run the application
+# Stage 3: Production image
 FROM oven/bun:canary-alpine AS runner
 
 WORKDIR /app
 
-# Copy only necessary files from builder
-COPY --from=builder /app/package.json /app/bun.lock* ./
-COPY --from=builder /app/.next ./.next
-COPY --from=builder /app/public ./public
-COPY --from=builder /app/node_modules ./node_modules
-
-# Environment variables (can be overridden)
 ENV NODE_ENV=production
 ENV PORT=3000
 
-# Expose the port the app runs on
+RUN addgroup --system --gid 1001 nodejs \
+    && adduser --system --uid 1001 nextjs
+
+COPY --from=builder /app/public ./public
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+
+USER nextjs
+
 EXPOSE 3000
 
-# Command to run the application
-CMD ["bun", "run", "start"]
+ENTRYPOINT ["bun"]
+
+CMD ["bun", "run", "server.js"]

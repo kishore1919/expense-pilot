@@ -132,11 +132,11 @@ const MenuItemButton = React.memo(function MenuItemButton({
 
 /**
  * Mobile navigation menu items - simplified for mobile view
- * Only shows Dashboard and Books for easier mobile navigation
+ * Only shows Dashboard and Personal Expense for easier mobile navigation
  */
 const mobileMenuItems = [
   { icon: FiGrid, name: 'Dashboard', path: '/' },
-  { icon: FiBookOpen, name: 'Books', path: '/books' },
+  { icon: FiUser, name: 'Personal', path: '/personal' },
 ];
 
 export default function Sidebar() {

@@ -29,6 +29,7 @@ import {
   FormControl,
   InputLabel,
 } from '@mui/material';
+import { useTheme, useMediaQuery } from '@mui/material';
 import {
   FiPlus,
   FiEdit2,
@@ -101,6 +102,8 @@ export default function BudgetPage() {
   const [deleteTarget, setDeleteTarget] = useState<Budget | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const { formatCurrency, currency } = useCurrencyStore();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
   // Form state
   const [selectedBook, setSelectedBook] = useState('');
@@ -902,12 +905,11 @@ export default function BudgetPage() {
         onClose={handleCloseModal}
         maxWidth="sm"
         fullWidth
-        fullScreen
+        fullScreen={isMobile}
         sx={{
           '& .MuiDialog-paper': {
             borderRadius: { xs: 0, sm: 2 },
           },
-          display: { sm: 'block' },
         }}
       >
         <DialogTitle sx={{
@@ -1081,12 +1083,11 @@ export default function BudgetPage() {
       <Dialog
         open={deleteTarget !== null}
         onClose={() => !isDeleting && setDeleteTarget(null)}
-        fullScreen
+        fullScreen={isMobile}
         sx={{
           '& .MuiDialog-paper': {
             borderRadius: { xs: 0, sm: 2 },
           },
-          display: { sm: 'block' },
         }}
       >
         <DialogTitle sx={{

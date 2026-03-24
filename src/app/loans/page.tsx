@@ -48,6 +48,7 @@ import {
 import { useCurrencyStore } from '../stores';
 import { useLoans } from '../hooks/useLoans';
 import { TableRowSkeleton } from '../components/ui/TableSkeleton';
+import { useTheme, useMediaQuery } from '@mui/material';
 
 type LoanSortOption = 'monthsLeft' | 'totalRemaining' | 'remaining' | 'name' | 'interestRate';
 
@@ -84,6 +85,8 @@ export default function LoansPage() {
 
   const { formatCurrency, getCurrencySymbol } = useCurrencyStore();
   const currencySymbol = getCurrencySymbol();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
   return (
     <Container maxWidth="xl" sx={{ py: { xs: 2, sm: 4 }, px: { xs: 1, sm: 2 } }}>
@@ -483,12 +486,11 @@ export default function LoansPage() {
         onClose={() => setIsModalOpen(false)}
         fullWidth
         maxWidth="sm"
-        fullScreen
+        fullScreen={isMobile}
         sx={{
           '& .MuiDialog-paper': {
             borderRadius: { xs: 0, sm: 2 },
           },
-          display: { sm: 'block' },
         }}
       >
         <DialogTitle sx={{
@@ -676,12 +678,11 @@ export default function LoansPage() {
       <Dialog
         open={!!deleteTarget}
         onClose={() => setDeleteTarget(null)}
-        fullScreen
+        fullScreen={isMobile}
         sx={{
           '& .MuiDialog-paper': {
             borderRadius: { xs: 0, sm: 2 },
           },
-          display: { sm: 'block' },
         }}
       >
         <DialogTitle sx={{

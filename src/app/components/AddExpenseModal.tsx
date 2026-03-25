@@ -539,7 +539,7 @@ export default function AddExpenseModal({
         const updatedCategories = [...availableCategories, category].sort();
         setAvailableCategories(updatedCategories);
         localStorage.setItem('categories-updated', Date.now().toString());
-        window.dispatchEvent(new Event('storage'));
+        window.dispatchEvent(new Event('categories-updated'));
       }
 
       const payload: ExpensePayload = {
@@ -831,7 +831,7 @@ export default function AddExpenseModal({
                       
                       // Notify other components
                       localStorage.setItem('categories-updated', Date.now().toString());
-                      window.dispatchEvent(new Event('storage'));
+                      window.dispatchEvent(new Event('categories-updated'));
                     } catch (err) {
                       console.error('Error creating category:', err);
                       setErrorMessage('Failed to create category');
@@ -870,7 +870,7 @@ export default function AddExpenseModal({
                   if (option.startsWith('__ADD_NEW__')) {
                     const newName = option.replace('__ADD_NEW__', '');
                     return (
-                      <li key={`__ADD_NEW__${newName}`} style={{ color: 'var(--mui-palette-primary-main)', fontWeight: 600 }}>
+                      <li {...props} key={`__ADD_NEW__${newName}`} style={{ color: 'var(--mui-palette-primary-main)', fontWeight: 600 }}>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, py: 1 }}>
                           <FiPlus size={18} />
                           Add New: "{newName}"
@@ -878,7 +878,7 @@ export default function AddExpenseModal({
                       </li>
                     );
                   }
-                  return <li key={option}>{option}</li>;
+                  return <li {...props} key={option}>{option}</li>;
                 }}
                 getOptionLabel={(option) => {
                   // Hide the internal prefix from display

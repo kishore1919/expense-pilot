@@ -115,7 +115,11 @@ const CategoryManager: React.FC = () => {
     };
     
     window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
+    window.addEventListener('categories-updated', refreshCategories);
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('categories-updated', refreshCategories);
+    };
   }, [refreshCategories]);
 
   const handleAddCategory = async (e?: React.FormEvent) => {
@@ -142,7 +146,7 @@ const CategoryManager: React.FC = () => {
       
       // Notify other components that categories have been updated
       localStorage.setItem('categories-updated', Date.now().toString());
-      window.dispatchEvent(new Event('storage'));
+      window.dispatchEvent(new Event('categories-updated'));
     } catch (err) {
       console.error('Error adding category:', err);
       setError('Failed to add category.');

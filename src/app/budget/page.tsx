@@ -905,10 +905,12 @@ export default function BudgetPage() {
         onClose={handleCloseModal}
         maxWidth="sm"
         fullWidth
-        fullScreen={isMobile}
         sx={{
           '& .MuiDialog-paper': {
-            borderRadius: { xs: 0, sm: 2 },
+            borderRadius: 2,
+            mx: { xs: 2, sm: 'auto' },
+            my: { xs: 2, sm: 'auto' },
+            maxHeight: { xs: 'calc(100% - 32px)', sm: 'auto' },
           },
         }}
       >
@@ -1083,10 +1085,12 @@ export default function BudgetPage() {
       <Dialog
         open={deleteTarget !== null}
         onClose={() => !isDeleting && setDeleteTarget(null)}
-        fullScreen={isMobile}
+        fullWidth
+        maxWidth="xs"
         sx={{
           '& .MuiDialog-paper': {
-            borderRadius: { xs: 0, sm: 2 },
+            borderRadius: { xs: 2, sm: 2 },
+            mx: { xs: 2, sm: 'auto' },
           },
         }}
       >

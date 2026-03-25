@@ -486,10 +486,12 @@ export default function LoansPage() {
         onClose={() => setIsModalOpen(false)}
         fullWidth
         maxWidth="sm"
-        fullScreen={isMobile}
         sx={{
           '& .MuiDialog-paper': {
-            borderRadius: { xs: 0, sm: 2 },
+            borderRadius: 2,
+            mx: { xs: 2, sm: 'auto' },
+            my: { xs: 2, sm: 'auto' },
+            maxHeight: { xs: 'calc(100% - 32px)', sm: 'auto' },
           },
         }}
       >
@@ -678,10 +680,12 @@ export default function LoansPage() {
       <Dialog
         open={!!deleteTarget}
         onClose={() => setDeleteTarget(null)}
-        fullScreen={isMobile}
+        fullWidth
+        maxWidth="xs"
         sx={{
           '& .MuiDialog-paper': {
-            borderRadius: { xs: 0, sm: 2 },
+            borderRadius: { xs: 2, sm: 2 },
+            mx: { xs: 2, sm: 'auto' },
           },
         }}
       >

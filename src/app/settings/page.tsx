@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Card,
   CardContent,
@@ -72,42 +72,51 @@ const CategoryManager: React.FC = () => {
   const [deleteCatTarget, setDeleteCatTarget] = useState<string | null>(null);
   const [isDeletingCat, setIsDeletingCat] = useState(false);
   const [page, setPage] = useState(1);
-  const [filter, setFilter] = useState<'core' | 'custom'>('core');
   const pageSize = 5;
 
+  const refreshCategories = useCallback(async () => {
+    if (!user) return;
+    try {
+      setLoadingCats(true);
+      const q = query(
+        collection(db, 'categories'),
+        where('userId', '==', user.uid)
+      );
+      const querySnapshot = await getDocs(q);
+      const cats = querySnapshot.docs
+        .map(d => {
+          const data = d.data();
+          return { 
+            id: d.id, 
+            name: data.name,
+            createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : (data.createdAt ? new Date(data.createdAt) : undefined)
+          };
+        })
+        .sort((a, b) => (b.createdAt?.getTime() || 0) - (a.createdAt?.getTime() || 0));
+      
+      setCategories(cats);
+      setError(null);
+    } catch (err) {
+      console.error('Error fetching categories:', err);
+      setError('Failed to load categories.');
+    } finally {
+      setLoadingCats(false);
+    }
+  }, [user]);
+
   useEffect(() => {
-    const fetchCategories = async () => {
-      if (!user) return;
-      try {
-        setLoadingCats(true);
-        const q = query(
-          collection(db, 'categories'),
-          where('userId', '==', user.uid)
-        );
-        const querySnapshot = await getDocs(q);
-        const cats = querySnapshot.docs
-          .map(d => {
-            const data = d.data();
-            return { 
-              id: d.id, 
-              name: data.name,
-              createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : (data.createdAt ? new Date(data.createdAt) : undefined)
-            };
-          })
-          .sort((a, b) => (b.createdAt?.getTime() || 0) - (a.createdAt?.getTime() || 0));
-          
-        setCategories(cats);
-        setError(null);
-      } catch (err) {
-        console.error('Error fetching categories:', err);
-        setError('Failed to load categories.');
-      } finally {
-        setLoadingCats(false);
+    refreshCategories();
+    
+    // Listen for category updates from other components
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'categories-updated') {
+        refreshCategories();
       }
     };
-
-    fetchCategories();
-  }, [user]);
+    
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, [refreshCategories]);
 
   const handleAddCategory = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -130,6 +139,10 @@ const CategoryManager: React.FC = () => {
       setNewCategory('');
       setPage(1);
       setError(null);
+      
+      // Notify other components that categories have been updated
+      localStorage.setItem('categories-updated', Date.now().toString());
+      window.dispatchEvent(new Event('storage'));
     } catch (err) {
       console.error('Error adding category:', err);
       setError('Failed to add category.');
@@ -160,9 +173,7 @@ const CategoryManager: React.FC = () => {
 
   // Combine and filter categories
   const filteredCategories = React.useMemo(() => {
-    const result = filter === 'core'
-      ? CORE_CATEGORIES.map(name => ({ id: `core-${name}`, name, isCore: true, createdAt: new Date(0) }))
-      : categories.map(c => ({ ...c, isCore: false }));
+    const result = categories;
 
     return result.sort((a, b) => {
       const dateA = a.createdAt?.getTime() || 0;
@@ -170,7 +181,7 @@ const CategoryManager: React.FC = () => {
       if (dateA !== dateB) return dateB - dateA;
       return a.name.localeCompare(b.name);
     });
-  }, [categories, filter]);
+  }, [categories]);
 
   // Pagination logic
   const totalFiltered = filteredCategories.length;
@@ -179,7 +190,7 @@ const CategoryManager: React.FC = () => {
 
   useEffect(() => {
     setPage(1);
-  }, [filter]);
+  }, [categories]);
 
   // Adjust page when categories / filtered count changes so we don't stay on an empty page
   useEffect(() => {
@@ -197,6 +208,7 @@ const CategoryManager: React.FC = () => {
         component="form" 
         onSubmit={handleAddCategory} 
         sx={{ display: 'flex', gap: 1.5, mb: 3 }}
+        onFocus={refreshCategories}
       >
         <TextField
           value={newCategory}
@@ -219,24 +231,29 @@ const CategoryManager: React.FC = () => {
         </Button>
       </Box>
 
-      <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }}>
-        <Tabs 
-          value={filter} 
-          onChange={(_, newValue) => setFilter(newValue)}
-          variant="fullWidth"
-          sx={{ minHeight: 40, '& .MuiTab-root': { py: 1, minHeight: 40, textTransform: 'none', fontWeight: 600 } }}
-        >
-          <Tab label="Core" value="core" />
-          <Tab label="Custom" value="custom" />
-        </Tabs>
-      </Box>
-
       {loadingCats ? (
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
           {[1, 2, 3].map((i) => (
             <Skeleton key={i} variant="rounded" height={48} />
           ))}
         </Box>
+      ) : displayedCategories.length === 0 ? (
+        <Paper variant="outlined" sx={{ p: 4, textAlign: 'center', borderColor: 'divider', borderRadius: 2 }}>
+          <Typography color="text.secondary" gutterBottom>
+            No custom categories yet.
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Add one using the form above or create one while adding an expense.
+          </Typography>
+          <Button 
+            variant="text" 
+            onClick={refreshCategories} 
+            sx={{ mt: 2 }}
+            size="small"
+          >
+            Refresh
+          </Button>
+        </Paper>
       ) : (
         <Paper variant="outlined" sx={{ backgroundColor: (theme) => theme.palette.mode === 'dark' ? 'background.default' : undefined, borderColor: (theme) => theme.palette.mode === 'dark' ? 'divider' : undefined, borderRadius: 2, overflow: 'hidden' }}>
           <List disablePadding>
@@ -245,21 +262,19 @@ const CategoryManager: React.FC = () => {
                 {index > 0 && <Divider sx={{ borderColor: (theme) => theme.palette.mode === 'dark' ? 'divider' : undefined }} />}
                 <ListItem
                   secondaryAction={
-                    !c.isCore && (
-                      <IconButton 
-                        edge="end" 
-                        onClick={() => handleDeleteCategory(c.id)}
-                        sx={{
-                          color: 'text.secondary',
-                          '&:hover': {
-                            color: 'error.main',
-                            bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(239,68,68,0.08)' : 'error.bg',
-                          },
-                        }}
-                      >
-                        <FiTrash2 size={18} />
-                      </IconButton>
-                    )
+                    <IconButton 
+                      edge="end" 
+                      onClick={() => handleDeleteCategory(c.id)}
+                      sx={{
+                        color: 'text.secondary',
+                        '&:hover': {
+                          color: 'error.main',
+                          bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(239,68,68,0.08)' : 'error.bg',
+                        },
+                      }}
+                    >
+                      <FiTrash2 size={18} />
+                    </IconButton>
                   }
                   sx={{
                     py: 1.5,
@@ -274,7 +289,7 @@ const CategoryManager: React.FC = () => {
                       width: 8,
                       height: 8,
                       borderRadius: '50%',
-                      bgcolor: c.isCore ? 'secondary.main' : 'primary.main',
+                      bgcolor: 'primary.main',
                       mr: 2,
                       flexShrink: 0,
                     }}
@@ -282,7 +297,6 @@ const CategoryManager: React.FC = () => {
                   <ListItemText 
                     primary={c.name}
                     primaryTypographyProps={{ fontWeight: 500 }}
-                    secondary={c.isCore ? 'Core Category' : null}
                   />
                 </ListItem>
               </React.Fragment>

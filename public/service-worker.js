@@ -1,19 +1,71 @@
-// Minimal service worker to prevent 404s from stale registrations
-// This service worker does nothing significant: it immediately takes control
-// and then simply passes through fetch events. You can extend it later with
-// caching strategies if you decide to use service workers formally.
+const CACHE_NAME = 'expense-pilot-v1';
+const STATIC_ASSETS = [
+  '/',
+  '/manifest.json',
+  '/icon.svg',
+  '/icon-192.svg',
+  '/icon-512.svg',
+];
 
-self.addEventListener('install', () => {
-  // Activate immediately
+self.addEventListener('install', (event) => {
+  event.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => {
+      return cache.addAll(STATIC_ASSETS);
+    })
+  );
   self.skipWaiting();
 });
 
-self.addEventListener('activate', (_event) => {
-  // Become the controlling worker
-  _event.waitUntil(self.clients.claim());
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    caches.keys().then((cacheNames) => {
+      return Promise.all(
+        cacheNames
+          .filter((name) => name !== CACHE_NAME)
+          .map((name) => caches.delete(name))
+      );
+    })
+  );
+  self.clients.claim();
 });
 
-// Optional: a simple fetch handler that does nothing special
-self.addEventListener('fetch', () => {
-  // Let the request bypass the service worker by default
+self.addEventListener('fetch', (event) => {
+  const { request } = event;
+  const url = new URL(request.url);
+
+  if (request.method !== 'GET') return;
+
+  if (url.origin === location.origin) {
+    if (url.pathname.startsWith('/_next/static/') || url.pathname.endsWith('.js') || url.pathname.endsWith('.css')) {
+      event.respondWith(
+        caches.match(request).then((cached) => {
+          return cached || fetch(request).then((response) => {
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
+            return response;
+          });
+        })
+      );
+      return;
+    }
+
+    if (url.pathname === '/' || url.pathname.startsWith('/book') || url.pathname.startsWith('/books')) {
+      event.respondWith(
+        caches.match(request).then((cached) => {
+          return cached || fetch(request).then((response) => {
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
+            return response;
+          });
+        })
+      );
+      return;
+    }
+  }
+
+  event.respondWith(
+    fetch(request).catch(() => {
+      return caches.match('/');
+    })
+  );
 });

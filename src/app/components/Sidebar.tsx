@@ -41,6 +41,7 @@ import {
   FiMenu,
   FiX,
   FiUser,
+  FiSearch,
 } from 'react-icons/fi';
 import { FaBook } from 'react-icons/fa';
 import { useSidebarStore } from '../stores';
@@ -139,7 +140,7 @@ const mobileMenuItems = [
   { icon: FiUser, name: 'Personal', path: '/personal' },
 ];
 
-export default function Sidebar() {
+export default function Sidebar({ onSearchClick }: { onSearchClick?: () => void }) {
   const pathname = usePathname();
   const router = useRouter();
   const { isCollapsed, setIsCollapsed } = useSidebarStore();
@@ -204,6 +205,50 @@ export default function Sidebar() {
             Expense Pilot
           </Typography>
         )}
+      </Box>
+
+      {/* Search Button */}
+      <Box sx={{ px: 1.5, py: 1 }}>
+        <Box
+          onClick={onSearchClick}
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1.5,
+            px: isCollapsed ? 1.5 : 2,
+            py: 1.25,
+            borderRadius: 2,
+            bgcolor: 'action.hover',
+            cursor: 'pointer',
+            transition: 'all 150ms ease',
+            '&:hover': {
+              bgcolor: 'action.selected',
+            },
+          }}
+        >
+          <FiSearch size={18} color="text.secondary" />
+          {!isCollapsed && (
+            <Typography variant="body2" color="text.secondary" sx={{ flex: 1 }}>
+              Search...
+            </Typography>
+          )}
+          {!isCollapsed && (
+            <Box
+              component="kbd"
+              sx={{
+                px: 0.75,
+                py: 0.25,
+                borderRadius: 1,
+                bgcolor: 'background.paper',
+                fontSize: '0.7rem',
+                fontFamily: 'monospace',
+                color: 'text.secondary',
+              }}
+            >
+              ⌘K
+            </Box>
+          )}
+        </Box>
       </Box>
 
       {/* Navigation Items */}

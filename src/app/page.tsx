@@ -9,9 +9,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { 
   FiPlus, 
-  FiTrendingUp, 
   FiCreditCard, 
-  FiTarget, 
   FiArrowRight,
   FiActivity,
   FiUser,
@@ -24,7 +22,6 @@ import {
   Grid,
   Typography,
   Button,
-  LinearProgress,
   Paper,
   Table,
   TableBody,
@@ -36,10 +33,8 @@ import {
   Skeleton,
 } from '@mui/material';
 import AddBookModal from './components/AddBookModal';
-import { StatCard } from './components/ui';
 import { useBooks } from '@/app/hooks/useBooks';
 import { useRecentTransactions } from '@/app/hooks/useRecentTransactions';
-import { useFinancialOverview } from '@/app/hooks/useFinancialOverview';
 import { useCurrencyStore } from '@/app/stores';
 import { useProtectedRoute } from '@/app/hooks/useAuth';
 
@@ -52,7 +47,6 @@ export default function HomePage() {
   const router = useRouter();
   
   const { loading: booksLoading, error: booksError, addBook } = useBooks({ calculateNet: true });
-  const overview = useFinancialOverview();
   const { transactions, loading: transactionsLoading } = useRecentTransactions(5);
   
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -63,17 +57,12 @@ export default function HomePage() {
       setAddError(null);
       await addBook(bookName, type);
       setIsModalOpen(false);
-      overview.refetch(); // Refresh overview after adding a book
     } catch (err) {
       setAddError(err instanceof Error ? err.message : 'Failed to create book');
     }
-  }, [addBook, overview]);
+  }, [addBook]);
 
-  const loading = authLoading || booksLoading || overview.loading;
-  
-  const budgetProgress = overview.totalBudget > 0 
-    ? Math.min(Math.round((overview.totalSpent / overview.totalBudget) * 100), 100) 
-    : 0;
+  const loading = authLoading || booksLoading || transactionsLoading;
 
   const today = new Date().toLocaleDateString('en-US', { 
     weekday: 'long', 
@@ -104,7 +93,7 @@ export default function HomePage() {
             Welcome back, {user?.displayName?.split(' ')[0] || 'User'}!
           </Typography>
           <Typography variant="body1" color="text.secondary">
-            {today} • Your financial overview is looking {overview.totalNetWorth >= 0 ? 'good' : 'a bit low'} today.
+            {today} • Track your expenses and manage your books.
           </Typography>
         </Box>
         <Box sx={{ display: 'flex', gap: 2 }}>
@@ -141,62 +130,13 @@ export default function HomePage() {
         </Box>
       </Box>
 
-      {(booksError || overview.error || addError) && (
+      {(booksError || addError) && (
         <Alert severity="error" sx={{ mb: 3, borderRadius: 2 }}>
-          {booksError || overview.error || addError}
+          {booksError || addError}
         </Alert>
       )}
 
-      {/* Primary Stats Grid */}
-      <Grid container spacing={{ xs: 2, sm: 3 }} sx={{ mb: 6 }}>
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-          <StatCard
-            title="Net Worth"
-            value={formatCurrency(overview.totalNetWorth)}
-            icon={<FiTrendingUp size={20} />}
-            iconBgColor="primary.main"
-            valueColor={overview.totalNetWorth >= 0 ? 'success.main' : 'error.main'}
-            loading={loading}
-          />
-        </Grid>
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-          <StatCard
-            title="Total Debt"
-            value={formatCurrency(overview.totalLiability)}
-            icon={<FiCreditCard size={20} />}
-            iconBgColor="error.main"
-            valueColor="error.main"
-            loading={loading}
-          />
-        </Grid>
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-          <StatCard
-            title="Budget Usage"
-            value={`${budgetProgress}%`}
-            icon={<FiTarget size={20} />}
-            iconBgColor="info.main"
-            loading={loading}
-            footer={
-              <Box sx={{ mt: 1 }}>
-                <LinearProgress
-                  variant="determinate"
-                  value={budgetProgress}
-                  color={budgetProgress > 90 ? 'error' : budgetProgress > 70 ? 'warning' : 'primary'}
-                  sx={{ height: 6, borderRadius: 3, bgcolor: 'rgba(0,0,0,0.05)' }}
-                />
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 0.5 }}>
-                  <Typography variant="caption" color="text.secondary">
-                    {formatCurrency(overview.totalSpent)} spent
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    {formatCurrency(overview.totalBudget)} limit
-                  </Typography>
-                </Box>
-              </Box>
-            }
-          />
-        </Grid>
-      </Grid>
+      {/* Stats Grid removed - using Quick Actions and Recent Transactions instead */}
 
       <Typography variant="h6" fontWeight={700} sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 1 }}>
         <FiActivity size={20} color="#6366F1" />

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   FiEdit2,
   FiPlus,
@@ -32,7 +32,12 @@ import {
   Divider,
   Alert,
   useTheme,
-  useMediaQuery
+  useMediaQuery,
+  Fab,
+  SpeedDial,
+  SpeedDialIcon,
+  SpeedDialAction,
+  Tooltip,
 } from '@mui/material';
 
 import { useParams, useRouter } from 'next/navigation';
@@ -402,6 +407,34 @@ export default function BookDetailPage() {
     URL.revokeObjectURL(url);
   };
 
+  // Keyboard shortcuts for quick entry
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey || e.metaKey) {
+        if (e.key === 'i' || e.key === 'I') {
+          e.preventDefault();
+          setEditingExpense(null);
+          setModalInitialType('in');
+          setIsModalOpen(true);
+        } else if (e.key === 'o' || e.key === 'O') {
+          e.preventDefault();
+          setEditingExpense(null);
+          setModalInitialType('out');
+          setIsModalOpen(true);
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  // FAB actions
+  const fabActions = [
+    { icon: <FiPlus size={20} />, name: 'Cash In', action: () => { setEditingExpense(null); setModalInitialType('in'); setIsModalOpen(true); } },
+    { icon: <FiMinus size={20} />, name: 'Cash Out', action: () => { setEditingExpense(null); setModalInitialType('out'); setIsModalOpen(true); } },
+  ];
+
   return (
     <Box sx={{ pb: { xs: 10, md: 4 }, px: { xs: 2, sm: 2, md: 3 } }}>
       
@@ -717,6 +750,30 @@ export default function BookDetailPage() {
           isDeleting={isDeleting}
         />
       )}
+
+      {/* FAB for quick entry */}
+      <SpeedDial
+        ariaLabel="Quick add"
+        sx={{ position: 'fixed', bottom: { xs: 80, md: 24 }, right: 24 }}
+        icon={<SpeedDialIcon />}
+        FabProps={{
+          color: 'primary',
+          size: 'medium',
+        }}
+      >
+        {fabActions.map((action) => (
+          <SpeedDialAction
+            key={action.name}
+            icon={action.icon}
+            tooltipTitle={action.name}
+            onClick={action.action}
+            FabProps={{
+              color: action.name === 'Cash In' ? 'success' : 'error',
+              size: 'small',
+            }}
+          />
+        ))}
+      </SpeedDial>
 
       <AddExpenseModal
         isOpen={isModalOpen}

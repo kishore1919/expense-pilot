@@ -14,7 +14,9 @@ import {
   FiTarget, 
   FiArrowRight,
   FiActivity,
-  FiUser
+  FiUser,
+  FiArrowUpRight,
+  FiArrowDownRight
 } from 'react-icons/fi';
 import {
   Box,
@@ -24,10 +26,19 @@ import {
   Button,
   LinearProgress,
   Paper,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Chip,
+  Skeleton,
 } from '@mui/material';
 import AddBookModal from './components/AddBookModal';
 import { StatCard } from './components/ui';
 import { useBooks } from '@/app/hooks/useBooks';
+import { useRecentTransactions } from '@/app/hooks/useRecentTransactions';
 import { useFinancialOverview } from '@/app/hooks/useFinancialOverview';
 import { useCurrencyStore } from '@/app/stores';
 import { useProtectedRoute } from '@/app/hooks/useAuth';
@@ -42,6 +53,7 @@ export default function HomePage() {
   
   const { loading: booksLoading, error: booksError, addBook } = useBooks({ calculateNet: true });
   const overview = useFinancialOverview();
+  const { transactions, loading: transactionsLoading } = useRecentTransactions(5);
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
@@ -244,6 +256,90 @@ export default function HomePage() {
           </Grid>
         ))}
       </Grid>
+
+      {/* Recent Transactions Section */}
+      <Typography variant="h6" fontWeight={700} sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 1 }}>
+        <FiActivity size={20} color="#6366F1" />
+        Recent Transactions
+        <Typography variant="body2" color="text.secondary" fontWeight={400} sx={{ ml: 1 }}>
+          Across all books
+        </Typography>
+      </Typography>
+
+      <Paper elevation={0} sx={{ mb: 6, border: '1px solid', borderColor: 'divider', borderRadius: 3, overflow: 'hidden' }}>
+        {transactionsLoading ? (
+          <Box sx={{ p: 3 }}>
+            {[1, 2, 3].map((i) => (
+              <Skeleton key={i} height={60} sx={{ mb: 1 }} />
+            ))}
+          </Box>
+        ) : transactions.length === 0 ? (
+          <Box sx={{ p: 4, textAlign: 'center' }}>
+            <Typography color="text.secondary">No transactions yet</Typography>
+          </Box>
+        ) : (
+          <TableContainer>
+            <Table sx={{ minWidth: 650 }}>
+              <TableHead sx={{ bgcolor: 'background.default' }}>
+                <TableRow>
+                  <TableCell sx={{ fontWeight: 600 }}>Date</TableCell>
+                  <TableCell sx={{ fontWeight: 600 }}>Description</TableCell>
+                  <TableCell sx={{ fontWeight: 600 }}>Book</TableCell>
+                  <TableCell sx={{ fontWeight: 600 }}>Category</TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 600 }}>Amount</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {transactions.slice(0, 5).map((tx) => {
+                  const date = tx.createdAt.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+                  const isIncome = tx.type === 'in';
+                  return (
+                    <TableRow 
+                      key={`${tx.bookId}-${tx.id}`} 
+                      hover 
+                      onClick={() => router.push(`/book/${tx.bookId}`)}
+                      sx={{ textDecoration: 'none', cursor: 'pointer' }}
+                    >
+                      <TableCell>
+                        <Typography variant="body2" fontWeight={500}>{date}</Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2" fontWeight={500}>{tx.description}</Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Chip 
+                          label={tx.bookName} 
+                          size="small" 
+                          sx={{ fontWeight: 500, fontSize: '0.75rem' }}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2" color="text.secondary">{tx.category}</Typography>
+                      </TableCell>
+                      <TableCell align="right">
+                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 0.5 }}>
+                          {isIncome ? (
+                            <FiArrowUpRight size={16} color="#22c55e" />
+                          ) : (
+                            <FiArrowDownRight size={16} color="#ef4444" />
+                          )}
+                          <Typography 
+                            variant="body2" 
+                            fontWeight={600} 
+                            color={isIncome ? 'success.main' : 'error.main'}
+                          >
+                            {isIncome ? '+' : '-'}{formatCurrency(tx.amount)}
+                          </Typography>
+                        </Box>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        )}
+      </Paper>
 
       {/* Books Section */}
       <AddBookModal

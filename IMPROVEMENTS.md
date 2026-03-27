@@ -173,7 +173,7 @@ Last updated: 2026-03-24
 ## UX Improvements
 
 ### Keyboard Shortcuts
-- Quick navigation shortcuts (Ctrl+N for new expense)
+- Quick navigation shortcuts (Ctrl+i for cash in , ctrl+o for cash out)
 - Global shortcut for quick add
 - Shortcut help modal (display all shortcuts)
 - Customizable shortcuts

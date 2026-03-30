@@ -35,6 +35,7 @@ import {
 import AddBookModal from './components/AddBookModal';
 import { useBooks } from '@/app/hooks/useBooks';
 import { useRecentTransactions } from '@/app/hooks/useRecentTransactions';
+import { useUserProfile } from '@/app/hooks/useUserProfile';
 import { useCurrencyStore } from '@/app/stores';
 import { useProtectedRoute } from '@/app/hooks/useAuth';
 
@@ -45,6 +46,7 @@ export default function HomePage() {
   const { formatCurrency } = useCurrencyStore();
   const { user, loading: authLoading } = useProtectedRoute();
   const router = useRouter();
+  const { profile, loading: profileLoading } = useUserProfile();
   
   const { loading: booksLoading, error: booksError, addBook } = useBooks({ calculateNet: true });
   const { transactions, loading: transactionsLoading } = useRecentTransactions(5);
@@ -62,7 +64,7 @@ export default function HomePage() {
     }
   }, [addBook]);
 
-  const loading = authLoading || booksLoading || transactionsLoading;
+  const loading = authLoading || booksLoading || transactionsLoading || profileLoading;
 
   const today = new Date().toLocaleDateString('en-US', { 
     weekday: 'long', 
@@ -70,6 +72,8 @@ export default function HomePage() {
     month: 'long', 
     day: 'numeric' 
   });
+
+  const displayName = profile?.username || user?.displayName?.split(' ')[0] || 'User';
 
   const quickActions = [
     { label: 'Personal Tracker', icon: <FiUser size={18} />, path: '/personal', color: '#6366F1' },
@@ -90,7 +94,7 @@ export default function HomePage() {
               mb: 0.5
             }}
           >
-            Welcome back, {user?.displayName?.split(' ')[0] || 'User'}!
+            Welcome back, {displayName}!
           </Typography>
           <Typography variant="body1" color="text.secondary">
             {today} • Track your expenses and manage your books.

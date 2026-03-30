@@ -41,11 +41,15 @@ import {
   FiTag,
   FiChevronLeft,
   FiChevronRight,
+  FiEdit2,
+  FiCheck,
+  FiX,
 } from 'react-icons/fi';
 import { collection, getDocs, addDoc, deleteDoc, doc, query, where } from 'firebase/firestore';
 import { auth, db } from '../firebase';
 import { useCurrencyStore, useThemeStore } from '../stores';
 import { useAuthState } from 'react-firebase-hooks/auth';
+import { useUserProfile } from '@/app/hooks/useUserProfile';
 
 const CORE_CATEGORIES = ['Food', 'Travel', 'Medical', 'Shopping', 'Bills', 'Misc'];
 
@@ -358,6 +362,12 @@ const CategoryManager: React.FC = () => {
 
 export default function SettingsPage() {
   const [user] = useAuthState(auth);
+  const { profile, loading: profileLoading, updateUsername, checkUsernameAvailable } = useUserProfile();
+  const [editingUsername, setEditingUsername] = useState(false);
+  const [newUsername, setNewUsername] = useState('');
+  const [usernameError, setUsernameError] = useState<string | null>(null);
+  const [usernameSaving, setUsernameSaving] = useState(false);
+  
   // Initialize notifications lazily from storage to avoid setState-in-effect/hydration issues.
   const [notifications, setNotifications] = useState<boolean>(() => {
     try {
@@ -386,7 +396,89 @@ export default function SettingsPage() {
     });
   };
 
+  const handleStartEditUsername = () => {
+    setNewUsername(profile?.username || '');
+    setEditingUsername(true);
+    setUsernameError(null);
+  };
+
+  const handleCancelEditUsername = () => {
+    setEditingUsername(false);
+    setNewUsername('');
+    setUsernameError(null);
+  };
+
+  const handleSaveUsername = async () => {
+    const trimmedUsername = newUsername.trim().toLowerCase();
+    if (trimmedUsername.length < 3) {
+      setUsernameError('Username must be at least 3 characters');
+      return;
+    }
+    if (!/^[a-zA-Z0-9_]+$/.test(trimmedUsername)) {
+      setUsernameError('Username can only contain letters, numbers, and underscores');
+      return;
+    }
+
+    if (trimmedUsername !== profile?.username) {
+      const available = await checkUsernameAvailable(trimmedUsername);
+      if (!available) {
+        setUsernameError('This username is already taken');
+        return;
+      }
+    }
+
+    try {
+      setUsernameSaving(true);
+      await updateUsername(trimmedUsername);
+      setEditingUsername(false);
+      setUsernameError(null);
+    } catch (err) {
+      setUsernameError('Failed to update username');
+    } finally {
+      setUsernameSaving(false);
+    }
+  };
+
   const settingsItems = [
+    {
+      icon: <FiUser size={20} />,
+      label: 'Username',
+      value: profileLoading ? (
+        <Skeleton width={100} />
+      ) : editingUsername ? (
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <TextField
+            value={newUsername}
+            onChange={(e) => {
+              setNewUsername(e.target.value);
+              setUsernameError(null);
+            }}
+            size="small"
+            error={!!usernameError}
+            helperText={usernameError}
+            sx={{ width: 150 }}
+            autoFocus
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') handleSaveUsername();
+              if (e.key === 'Escape') handleCancelEditUsername();
+            }}
+          />
+          <IconButton size="small" onClick={handleSaveUsername} disabled={usernameSaving} color="success">
+            <FiCheck size={16} />
+          </IconButton>
+          <IconButton size="small" onClick={handleCancelEditUsername} disabled={usernameSaving} color="error">
+            <FiX size={16} />
+          </IconButton>
+        </Box>
+      ) : (
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Typography fontWeight={500}>{profile?.username || 'Set username'}</Typography>
+          <IconButton size="small" onClick={handleStartEditUsername}>
+            <FiEdit2 size={14} />
+          </IconButton>
+        </Box>
+      ),
+    },
     {
       icon: <FiMail size={20} />,
       label: 'Email',

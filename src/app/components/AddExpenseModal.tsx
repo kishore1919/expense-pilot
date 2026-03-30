@@ -873,7 +873,7 @@ export default function AddExpenseModal({
                       <li {...props} key={`__ADD_NEW__${newName}`} style={{ color: 'var(--mui-palette-primary-main)', fontWeight: 600 }}>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, py: 1 }}>
                           <FiPlus size={18} />
-                          Add New: "{newName}"
+                          Add New: &quot;{newName}&quot;
                         </Box>
                       </li>
                     );

@@ -30,9 +30,6 @@ export const metadata: Metadata = {
   description: 'Track and manage your personal expenses efficiently',
   manifest: '/manifest.json',
   themeColor: '#6366F1',
-  appleMobileWebAppCapable: 'yes',
-  appleMobileWebAppStatusBarStyle: 'default',
-  appleMobileWebAppTitle: 'Expense Pilot',
   formatDetection: {
     telephone: false,
   },

@@ -90,6 +90,29 @@ export interface User {
 }
 
 /**
+ * Extended user profile stored in Firestore for username management
+ * and multi-user collaboration features.
+ * 
+ * @interface UserProfile
+ * @property {string} uid - Firebase Auth uid (document ID)
+ * @property {string} username - Unique username chosen by user
+ * @property {string} email - User's email address
+ * @property {string} displayName - User's display name from Firebase Auth
+ * @property {string | null} photoURL - URL to user's profile photo
+ * @property {Timestamp} createdAt - Profile creation timestamp
+ * @property {Timestamp} updatedAt - Profile last update timestamp
+ */
+export interface UserProfile {
+  uid: string;
+  username: string;
+  email: string;
+  displayName: string;
+  photoURL: string | null;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
+/**
  * Available sort options for book lists.
  * 
  * @typedef {'last-updated' | 'name'} SortOption

@@ -111,7 +111,7 @@ export function ProtectedLayout({ children }: ProtectedLayoutProps) {
           </ErrorBoundary>
         </Box>
       </Box>
-      <SearchModal open={searchOpen} onClose={() => setSearchOpen(false)} />
+      <SearchModal key={searchOpen ? 'open' : 'closed'} open={searchOpen} onClose={() => setSearchOpen(false)} />
     </>
   );
 }

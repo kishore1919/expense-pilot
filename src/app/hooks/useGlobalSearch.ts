@@ -108,33 +108,40 @@ export function useGlobalSearch(searchQuery: string): UseGlobalSearchReturn {
         bookIds.push(doc.id);
       });
 
-      // Fetch recent transactions from all books
+      // Fetch recent transactions from books with bounded concurrency and cap
       const transactionsData: SearchResultTransaction[] = [];
-      await Promise.all(
-        bookIds.map(async (bookId) => {
-          const book = booksData.find(b => b.id === bookId);
-          const txQuery = query(
-            collection(db, `books/${bookId}/expenses`),
-            orderBy('createdAt', 'desc'),
-            limit(20)
-          );
-          const txSnap = await getDocs(txQuery);
-          txSnap.docs.forEach((doc) => {
-            const data = doc.data();
-            transactionsData.push({
-              type: 'transaction',
-              id: doc.id,
-              bookId,
-              bookName: book?.name || 'Unknown',
-              description: data.description || '',
-              amount: data.amount || 0,
-              typeTx: data.type || 'out',
-              createdAt: data.createdAt?.toDate?.() || new Date(),
-              category: data.category || 'General',
+      const MAX_BOOKS_TO_QUERY = 20; // keep a sensible cap to avoid many reads
+      const CONCURRENCY = 5; // limit parallel getDocs calls
+      const bookIdsToQuery = bookIds.slice(0, MAX_BOOKS_TO_QUERY);
+
+      for (let i = 0; i < bookIdsToQuery.length; i += CONCURRENCY) {
+        const chunk = bookIdsToQuery.slice(i, i + CONCURRENCY);
+        await Promise.all(
+          chunk.map(async (bookId) => {
+            const book = booksData.find((b) => b.id === bookId);
+            const txQuery = query(
+              collection(db, `books/${bookId}/expenses`),
+              orderBy('createdAt', 'desc'),
+              limit(20)
+            );
+            const txSnap = await getDocs(txQuery);
+            txSnap.docs.forEach((doc) => {
+              const data = doc.data();
+              transactionsData.push({
+                type: 'transaction',
+                id: doc.id,
+                bookId,
+                bookName: book?.name || 'Unknown',
+                description: data.description || '',
+                amount: data.amount || 0,
+                typeTx: data.type || 'out',
+                createdAt: data.createdAt?.toDate?.() || new Date(),
+                category: data.category || 'General',
+              });
             });
-          });
-        })
-      );
+          })
+        );
+      }
 
       // Fetch loans
       const loansQuery = query(

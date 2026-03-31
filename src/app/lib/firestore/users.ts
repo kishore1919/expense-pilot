@@ -45,15 +45,30 @@ export async function createUserProfile(
   photoURL: string | null
 ): Promise<void> {
   try {
-    await setDoc(doc(db, USERS_COLLECTION, uid), {
-      uid,
-      username,
-      email,
-      displayName,
-      photoURL,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    });
+    const userRef = doc(db, USERS_COLLECTION, uid);
+    const existing = await getDoc(userRef);
+    const normalizedUsername = username.toLowerCase().trim();
+
+    if (existing.exists()) {
+      // Preserve createdAt; only update mutable fields
+      await updateDoc(userRef, {
+        username: normalizedUsername,
+        email,
+        displayName,
+        photoURL,
+        updatedAt: serverTimestamp(),
+      });
+    } else {
+      await setDoc(userRef, {
+        uid,
+        username: normalizedUsername,
+        email,
+        displayName,
+        photoURL,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+    }
   } catch (error) {
     console.error('Error creating user profile:', error);
     throw error;
@@ -62,8 +77,9 @@ export async function createUserProfile(
 
 export async function updateUsername(uid: string, username: string): Promise<void> {
   try {
+    const normalizedUsername = username.toLowerCase().trim();
     await updateDoc(doc(db, USERS_COLLECTION, uid), {
-      username,
+      username: normalizedUsername,
       updatedAt: serverTimestamp(),
     });
   } catch (error) {
@@ -106,5 +122,6 @@ export async function updateUserProfile(
 export function getDefaultUsernameFromEmail(email: string | null): string {
   if (!email) return 'user';
   const localPart = email.split('@')[0];
-  return localPart.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+  const sanitized = localPart.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+  return sanitized || 'user';
 }

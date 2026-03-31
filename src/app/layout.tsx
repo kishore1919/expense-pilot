@@ -41,8 +41,8 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
+  maximumScale: 2,
+  userScalable: true,
   themeColor: '#6366F1',
   viewportFit: 'cover' as const,
 };

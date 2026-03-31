@@ -28,7 +28,7 @@ import {
   FiCreditCard,
   FiClock,
 } from 'react-icons/fi';
-import { useGlobalSearch, SearchResults } from '@/app/hooks/useGlobalSearch';
+import { useGlobalSearch, SearchResults, SearchResult } from '@/app/hooks/useGlobalSearch';
 import { useCurrencyStore } from '@/app/stores';
 
 interface SearchModalProps {
@@ -44,8 +44,8 @@ function ResultSection({
 }: {
   title: string;
   icon: React.ReactNode;
-  items: SearchResults[keyof SearchResults];
-  onItemClick: () => void;
+  items: SearchResult[];
+  onItemClick: (item: SearchResult) => void;
 }) {
   if (items.length === 0) return null;
 
@@ -61,7 +61,7 @@ function ResultSection({
         {items.map((item, index) => (
           <ListItemButton
             key={`${item.type}-${item.id}-${index}`}
-            onClick={onItemClick}
+            onClick={() => onItemClick(item)}
             sx={{
               borderRadius: 1,
               py: 1.5,
@@ -139,10 +139,11 @@ export default function SearchModal({ open, onClose }: SearchModalProps) {
       case 'book':
         router.push(`/book/${id}`);
         break;
-      case 'transaction':
+      case 'transaction': {
         const tx = results.transactions.find((t) => t.id === id);
         if (tx) router.push(`/book/${tx.bookId}`);
         break;
+      }
       case 'loan':
         router.push('/loans');
         break;
@@ -153,7 +154,7 @@ export default function SearchModal({ open, onClose }: SearchModalProps) {
     onClose();
   }, [router, results, onClose]);
 
-  const hasResults = 
+  const hasResults =
     results.books.length > 0 ||
     results.transactions.length > 0 ||
     results.loans.length > 0 ||
@@ -222,9 +223,7 @@ export default function SearchModal({ open, onClose }: SearchModalProps) {
           </Box>
         ) : !query.trim() ? (
           <Box sx={{ p: 4, textAlign: 'center' }}>
-            <Typography color="text.secondary">
-              Start typing to search...
-            </Typography>
+            <Typography color="text.secondary">Start typing to search...</Typography>
             <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
               Search across books, transactions, loans, and subscriptions
             </Typography>
@@ -239,7 +238,7 @@ export default function SearchModal({ open, onClose }: SearchModalProps) {
               title="Books"
               icon={<FiBookOpen size={16} color="text.secondary" />}
               items={results.books}
-              onItemClick={() => handleNavigate('book', results.books[0].id)}
+              onItemClick={(item) => handleNavigate('book', item.id)}
             />
 
             {results.books.length > 0 && results.transactions.length > 0 && (
@@ -250,7 +249,7 @@ export default function SearchModal({ open, onClose }: SearchModalProps) {
               title="Transactions"
               icon={<FiActivity size={16} color="text.secondary" />}
               items={results.transactions}
-              onItemClick={() => handleNavigate('transaction', results.transactions[0].id)}
+              onItemClick={(item) => handleNavigate('transaction', item.id)}
             />
 
             {(results.transactions.length > 0) && (results.loans.length > 0 || results.subscriptions.length > 0) && (
@@ -261,7 +260,7 @@ export default function SearchModal({ open, onClose }: SearchModalProps) {
               title="Loans"
               icon={<FiCreditCard size={16} color="text.secondary" />}
               items={results.loans}
-              onItemClick={() => handleNavigate('loan', results.loans[0].id)}
+              onItemClick={(item) => handleNavigate('loan', item.id)}
             />
 
             {results.loans.length > 0 && results.subscriptions.length > 0 && (
@@ -272,7 +271,7 @@ export default function SearchModal({ open, onClose }: SearchModalProps) {
               title="Subscriptions"
               icon={<FiClock size={16} color="text.secondary" />}
               items={results.subscriptions}
-              onItemClick={() => handleNavigate('subscription', results.subscriptions[0].id)}
+              onItemClick={(item) => handleNavigate('subscription', item.id)}
             />
           </Box>
         )}

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Card,
   CardContent,
@@ -41,11 +41,15 @@ import {
   FiTag,
   FiChevronLeft,
   FiChevronRight,
+  FiEdit2,
+  FiCheck,
+  FiX,
 } from 'react-icons/fi';
 import { collection, getDocs, addDoc, deleteDoc, doc, query, where } from 'firebase/firestore';
 import { auth, db } from '../firebase';
 import { useCurrencyStore, useThemeStore } from '../stores';
 import { useAuthState } from 'react-firebase-hooks/auth';
+import { useUserProfile } from '@/app/hooks/useUserProfile';
 
 const CORE_CATEGORIES = ['Food', 'Travel', 'Medical', 'Shopping', 'Bills', 'Misc'];
 
@@ -72,42 +76,55 @@ const CategoryManager: React.FC = () => {
   const [deleteCatTarget, setDeleteCatTarget] = useState<string | null>(null);
   const [isDeletingCat, setIsDeletingCat] = useState(false);
   const [page, setPage] = useState(1);
-  const [filter, setFilter] = useState<'core' | 'custom'>('core');
   const pageSize = 5;
 
+  const refreshCategories = useCallback(async () => {
+    if (!user) return;
+    try {
+      setLoadingCats(true);
+      const q = query(
+        collection(db, 'categories'),
+        where('userId', '==', user.uid)
+      );
+      const querySnapshot = await getDocs(q);
+      const cats = querySnapshot.docs
+        .map(d => {
+          const data = d.data();
+          return { 
+            id: d.id, 
+            name: data.name,
+            createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : (data.createdAt ? new Date(data.createdAt) : undefined)
+          };
+        })
+        .sort((a, b) => (b.createdAt?.getTime() || 0) - (a.createdAt?.getTime() || 0));
+      
+      setCategories(cats);
+      setError(null);
+    } catch (err) {
+      console.error('Error fetching categories:', err);
+      setError('Failed to load categories.');
+    } finally {
+      setLoadingCats(false);
+    }
+  }, [user]);
+
   useEffect(() => {
-    const fetchCategories = async () => {
-      if (!user) return;
-      try {
-        setLoadingCats(true);
-        const q = query(
-          collection(db, 'categories'),
-          where('userId', '==', user.uid)
-        );
-        const querySnapshot = await getDocs(q);
-        const cats = querySnapshot.docs
-          .map(d => {
-            const data = d.data();
-            return { 
-              id: d.id, 
-              name: data.name,
-              createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : (data.createdAt ? new Date(data.createdAt) : undefined)
-            };
-          })
-          .sort((a, b) => (b.createdAt?.getTime() || 0) - (a.createdAt?.getTime() || 0));
-          
-        setCategories(cats);
-        setError(null);
-      } catch (err) {
-        console.error('Error fetching categories:', err);
-        setError('Failed to load categories.');
-      } finally {
-        setLoadingCats(false);
+    refreshCategories();
+    
+    // Listen for category updates from other components
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'categories-updated') {
+        refreshCategories();
       }
     };
-
-    fetchCategories();
-  }, [user]);
+    
+    window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('categories-updated', refreshCategories);
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('categories-updated', refreshCategories);
+    };
+  }, [refreshCategories]);
 
   const handleAddCategory = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -130,6 +147,10 @@ const CategoryManager: React.FC = () => {
       setNewCategory('');
       setPage(1);
       setError(null);
+      
+      // Notify other components that categories have been updated
+      localStorage.setItem('categories-updated', Date.now().toString());
+      window.dispatchEvent(new Event('categories-updated'));
     } catch (err) {
       console.error('Error adding category:', err);
       setError('Failed to add category.');
@@ -160,9 +181,7 @@ const CategoryManager: React.FC = () => {
 
   // Combine and filter categories
   const filteredCategories = React.useMemo(() => {
-    const result = filter === 'core'
-      ? CORE_CATEGORIES.map(name => ({ id: `core-${name}`, name, isCore: true, createdAt: new Date(0) }))
-      : categories.map(c => ({ ...c, isCore: false }));
+    const result = categories;
 
     return result.sort((a, b) => {
       const dateA = a.createdAt?.getTime() || 0;
@@ -170,7 +189,7 @@ const CategoryManager: React.FC = () => {
       if (dateA !== dateB) return dateB - dateA;
       return a.name.localeCompare(b.name);
     });
-  }, [categories, filter]);
+  }, [categories]);
 
   // Pagination logic
   const totalFiltered = filteredCategories.length;
@@ -179,7 +198,7 @@ const CategoryManager: React.FC = () => {
 
   useEffect(() => {
     setPage(1);
-  }, [filter]);
+  }, [categories]);
 
   // Adjust page when categories / filtered count changes so we don't stay on an empty page
   useEffect(() => {
@@ -197,6 +216,7 @@ const CategoryManager: React.FC = () => {
         component="form" 
         onSubmit={handleAddCategory} 
         sx={{ display: 'flex', gap: 1.5, mb: 3 }}
+        onFocus={refreshCategories}
       >
         <TextField
           value={newCategory}
@@ -219,24 +239,29 @@ const CategoryManager: React.FC = () => {
         </Button>
       </Box>
 
-      <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }}>
-        <Tabs 
-          value={filter} 
-          onChange={(_, newValue) => setFilter(newValue)}
-          variant="fullWidth"
-          sx={{ minHeight: 40, '& .MuiTab-root': { py: 1, minHeight: 40, textTransform: 'none', fontWeight: 600 } }}
-        >
-          <Tab label="Core" value="core" />
-          <Tab label="Custom" value="custom" />
-        </Tabs>
-      </Box>
-
       {loadingCats ? (
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
           {[1, 2, 3].map((i) => (
             <Skeleton key={i} variant="rounded" height={48} />
           ))}
         </Box>
+      ) : displayedCategories.length === 0 ? (
+        <Paper variant="outlined" sx={{ p: 4, textAlign: 'center', borderColor: 'divider', borderRadius: 2 }}>
+          <Typography color="text.secondary" gutterBottom>
+            No custom categories yet.
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Add one using the form above or create one while adding an expense.
+          </Typography>
+          <Button 
+            variant="text" 
+            onClick={refreshCategories} 
+            sx={{ mt: 2 }}
+            size="small"
+          >
+            Refresh
+          </Button>
+        </Paper>
       ) : (
         <Paper variant="outlined" sx={{ backgroundColor: (theme) => theme.palette.mode === 'dark' ? 'background.default' : undefined, borderColor: (theme) => theme.palette.mode === 'dark' ? 'divider' : undefined, borderRadius: 2, overflow: 'hidden' }}>
           <List disablePadding>
@@ -245,21 +270,19 @@ const CategoryManager: React.FC = () => {
                 {index > 0 && <Divider sx={{ borderColor: (theme) => theme.palette.mode === 'dark' ? 'divider' : undefined }} />}
                 <ListItem
                   secondaryAction={
-                    !c.isCore && (
-                      <IconButton 
-                        edge="end" 
-                        onClick={() => handleDeleteCategory(c.id)}
-                        sx={{
-                          color: 'text.secondary',
-                          '&:hover': {
-                            color: 'error.main',
-                            bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(239,68,68,0.08)' : 'error.bg',
-                          },
-                        }}
-                      >
-                        <FiTrash2 size={18} />
-                      </IconButton>
-                    )
+                    <IconButton 
+                      edge="end" 
+                      onClick={() => handleDeleteCategory(c.id)}
+                      sx={{
+                        color: 'text.secondary',
+                        '&:hover': {
+                          color: 'error.main',
+                          bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(239,68,68,0.08)' : 'error.bg',
+                        },
+                      }}
+                    >
+                      <FiTrash2 size={18} />
+                    </IconButton>
                   }
                   sx={{
                     py: 1.5,
@@ -274,7 +297,7 @@ const CategoryManager: React.FC = () => {
                       width: 8,
                       height: 8,
                       borderRadius: '50%',
-                      bgcolor: c.isCore ? 'secondary.main' : 'primary.main',
+                      bgcolor: 'primary.main',
                       mr: 2,
                       flexShrink: 0,
                     }}
@@ -282,7 +305,6 @@ const CategoryManager: React.FC = () => {
                   <ListItemText 
                     primary={c.name}
                     primaryTypographyProps={{ fontWeight: 500 }}
-                    secondary={c.isCore ? 'Core Category' : null}
                   />
                 </ListItem>
               </React.Fragment>
@@ -340,6 +362,12 @@ const CategoryManager: React.FC = () => {
 
 export default function SettingsPage() {
   const [user] = useAuthState(auth);
+  const { profile, loading: profileLoading, updateUsername, checkUsernameAvailable } = useUserProfile();
+  const [editingUsername, setEditingUsername] = useState(false);
+  const [newUsername, setNewUsername] = useState('');
+  const [usernameError, setUsernameError] = useState<string | null>(null);
+  const [usernameSaving, setUsernameSaving] = useState(false);
+  
   // Initialize notifications lazily from storage to avoid setState-in-effect/hydration issues.
   const [notifications, setNotifications] = useState<boolean>(() => {
     try {
@@ -368,7 +396,89 @@ export default function SettingsPage() {
     });
   };
 
+  const handleStartEditUsername = () => {
+    setNewUsername(profile?.username || '');
+    setEditingUsername(true);
+    setUsernameError(null);
+  };
+
+  const handleCancelEditUsername = () => {
+    setEditingUsername(false);
+    setNewUsername('');
+    setUsernameError(null);
+  };
+
+  const handleSaveUsername = async () => {
+    const trimmedUsername = newUsername.trim().toLowerCase();
+    if (trimmedUsername.length < 3) {
+      setUsernameError('Username must be at least 3 characters');
+      return;
+    }
+    if (!/^[a-zA-Z0-9_]+$/.test(trimmedUsername)) {
+      setUsernameError('Username can only contain letters, numbers, and underscores');
+      return;
+    }
+
+    if (trimmedUsername !== profile?.username) {
+      const available = await checkUsernameAvailable(trimmedUsername);
+      if (!available) {
+        setUsernameError('This username is already taken');
+        return;
+      }
+    }
+
+    try {
+      setUsernameSaving(true);
+      await updateUsername(trimmedUsername);
+      setEditingUsername(false);
+      setUsernameError(null);
+    } catch (err) {
+      setUsernameError('Failed to update username');
+    } finally {
+      setUsernameSaving(false);
+    }
+  };
+
   const settingsItems = [
+    {
+      icon: <FiUser size={20} />,
+      label: 'Username',
+      value: profileLoading ? (
+        <Skeleton width={100} />
+      ) : editingUsername ? (
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <TextField
+            value={newUsername}
+            onChange={(e) => {
+              setNewUsername(e.target.value);
+              setUsernameError(null);
+            }}
+            size="small"
+            error={!!usernameError}
+            helperText={usernameError}
+            sx={{ width: 150 }}
+            autoFocus
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') handleSaveUsername();
+              if (e.key === 'Escape') handleCancelEditUsername();
+            }}
+          />
+          <IconButton size="small" onClick={handleSaveUsername} disabled={usernameSaving} color="success">
+            <FiCheck size={16} />
+          </IconButton>
+          <IconButton size="small" onClick={handleCancelEditUsername} disabled={usernameSaving} color="error">
+            <FiX size={16} />
+          </IconButton>
+        </Box>
+      ) : (
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Typography fontWeight={500}>{profile?.username || 'Set username'}</Typography>
+          <IconButton size="small" onClick={handleStartEditUsername}>
+            <FiEdit2 size={14} />
+          </IconButton>
+        </Box>
+      ),
+    },
     {
       icon: <FiMail size={20} />,
       label: 'Email',

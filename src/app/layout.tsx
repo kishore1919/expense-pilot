@@ -3,7 +3,7 @@
  * Wraps all pages with providers for theme, currency, sidebar, and authentication.
  * Configures fonts, metadata, and global styles.
  */
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Manrope, Space_Grotesk } from 'next/font/google';
 import { Box } from '@mui/material';
 import MUIProvider from './components/MUIProvider';
@@ -28,6 +28,23 @@ const headingFont = Space_Grotesk({
 export const metadata: Metadata = {
   title: 'Expense Pilot - Personal Expense Tracker',
   description: 'Track and manage your personal expenses efficiently',
+  manifest: '/manifest.json',
+  formatDetection: {
+    telephone: false,
+  },
+  icons: {
+    icon: '/icon.svg',
+    apple: '/icon-192.svg',
+  },
+};
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 2,
+  userScalable: true,
+  themeColor: '#6366F1',
+  viewportFit: 'cover' as const,
 };
 
 export default function RootLayout({

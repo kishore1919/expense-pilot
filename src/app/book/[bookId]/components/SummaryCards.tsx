@@ -13,44 +13,44 @@ interface SummaryCardsProps {
 
 export function SummaryCards({ cashIn, cashOut, netBalance, formatCurrency }: SummaryCardsProps) {
   return (
-    <Grid container spacing={2} sx={{ mb: 4 }}>
+    <Grid container spacing={{ xs: 1, sm: 2 }} sx={{ mb: { xs: 2, sm: 4 } }}>
       {[
         {
           label: 'Cash In',
           amount: cashIn,
           color: 'success.main',
-          icon: <FiPlus size={24} />,
+          icon: <FiPlus size={20} />,
           getBg: (theme: Theme) => theme.palette.mode === 'dark' ? 'rgba(16, 185, 129, 0.1)' : 'success.light'
         },
         {
           label: 'Cash Out',
           amount: cashOut,
           color: 'error.main',
-          icon: <FiMinus size={24} />,
+          icon: <FiMinus size={20} />,
           getBg: (theme: Theme) => theme.palette.mode === 'dark' ? 'rgba(239, 68, 68, 0.1)' : 'error.light'
         },
         {
           label: 'Net Balance',
           amount: netBalance,
           color: 'primary.main',
-          icon: <Typography sx={{ fontWeight: 900, fontSize: 20 }}>=</Typography>,
+          icon: <Typography sx={{ fontWeight: 900, fontSize: 16 }}>=</Typography>,
           getBg: (theme: Theme) => theme.palette.mode === 'dark' ? 'rgba(129, 140, 248, 0.1)' : 'primary.light'
         }
       ].map((stat, idx) => (
-        <Grid size={{ xs: 12, sm: 4 }} key={idx}>
+        <Grid size={{ xs: 4, sm: 4 }} key={idx}>
           <Paper elevation={0} sx={{
             border: '1px solid',
             borderColor: 'divider',
-            p: 2,
+            p: { xs: 1.5, sm: 2 },
             display: 'flex',
             alignItems: 'center',
-            gap: 2,
+            gap: { xs: 1, sm: 2 },
             height: '100%',
             '&:hover': { boxShadow: 1 }
           }}>
             <Box sx={{
-              width: 48,
-              height: 48,
+              width: { xs: 36, sm: 48 },
+              height: { xs: 36, sm: 48 },
               borderRadius: '50%',
               bgcolor: stat.getBg,
               color: stat.color,
@@ -61,11 +61,25 @@ export function SummaryCards({ cashIn, cashOut, netBalance, formatCurrency }: Su
             }}>
               {stat.icon}
             </Box>
-            <Box sx={{ minWidth: 0 }}>
-              <Typography variant="caption" color="text.secondary" fontWeight={600} textTransform="uppercase" noWrap display="block">
+            <Box sx={{ minWidth: 0, overflow: 'hidden' }}>
+              <Typography 
+                variant="caption" 
+                color="text.secondary" 
+                fontWeight={600} 
+                textTransform="uppercase" 
+                noWrap 
+                display="block"
+                sx={{ fontSize: { xs: '0.6rem', sm: '0.75rem' } }}
+              >
                 {stat.label}
               </Typography>
-              <Typography variant="h5" fontWeight={700} color="text.primary" noWrap>
+              <Typography 
+                variant="body1" 
+                fontWeight={700} 
+                color="text.primary" 
+                noWrap
+                sx={{ fontSize: { xs: '0.875rem', sm: '1rem' } }}
+              >
                 {formatCurrency(stat.amount)}
               </Typography>
             </Box>

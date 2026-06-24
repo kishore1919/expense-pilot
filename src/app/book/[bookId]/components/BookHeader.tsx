@@ -53,14 +53,25 @@ export function BookHeader({
         </Typography>
       </Box>
 
-      <Box sx={{ display: 'flex', gap: 1, width: { xs: '100%', sm: 'auto' } }}>
+      <Box sx={{ 
+        display: 'flex', 
+        gap: 1, 
+        width: { xs: '100%', sm: 'auto' },
+        flexWrap: 'wrap'
+      }}>
         <Button
           variant="outlined"
           startIcon={<FiArchive color="inherit" />}
           onClick={onToggleArchive}
           color={isArchived ? 'warning' : 'inherit'}
-          fullWidth={isMobile}
-          sx={{ textTransform: 'none', borderColor: 'divider', color: 'text.primary' }}
+          size="small"
+          sx={{ 
+            textTransform: 'none', 
+            borderColor: 'divider', 
+            color: 'text.primary',
+            flex: { xs: 1, sm: 'none' },
+            minWidth: 'fit-content'
+          }}
         >
           {isArchived ? 'Archived' : 'Archive'}
         </Button>
@@ -69,8 +80,14 @@ export function BookHeader({
           variant="outlined"
           startIcon={<FiBarChart2 />}
           onClick={() => router.push(`/book/${bookId}/analytics`)}
-          fullWidth={isMobile}
-          sx={{ textTransform: 'none', borderColor: 'divider', color: 'text.primary' }}
+          size="small"
+          sx={{ 
+            textTransform: 'none', 
+            borderColor: 'divider', 
+            color: 'text.primary',
+            flex: { xs: 1, sm: 'none' },
+            minWidth: 'fit-content'
+          }}
         >
           Analytics
         </Button>
@@ -79,8 +96,14 @@ export function BookHeader({
           variant="outlined"
           startIcon={<FiDownload />}
           onClick={onExport}
-          fullWidth={isMobile}
-          sx={{ textTransform: 'none', borderColor: 'divider', color: 'text.primary' }}
+          size="small"
+          sx={{ 
+            textTransform: 'none', 
+            borderColor: 'divider', 
+            color: 'text.primary',
+            flex: { xs: 1, sm: 'none' },
+            minWidth: 'fit-content'
+          }}
         >
           Export
         </Button>
@@ -90,7 +113,8 @@ export function BookHeader({
           startIcon={<FiFilter />}
           onClick={onToggleFilters}
           color={showFilters ? 'primary' : 'inherit'}
-          sx={{ display: { md: 'none' }, minWidth: 'auto' }}
+          size="small"
+          sx={{ display: { md: 'none' }, minWidth: 'fit-content' }}
         >
           Filters
         </Button>

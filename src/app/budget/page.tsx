@@ -29,6 +29,7 @@ import {
   FormControl,
   InputLabel,
 } from '@mui/material';
+import { useTheme } from '@mui/material';
 import {
   FiPlus,
   FiEdit2,
@@ -101,6 +102,7 @@ export default function BudgetPage() {
   const [deleteTarget, setDeleteTarget] = useState<Budget | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const { formatCurrency, currency } = useCurrencyStore();
+  const theme = useTheme();
 
   // Form state
   const [selectedBook, setSelectedBook] = useState('');
@@ -622,12 +624,12 @@ export default function BudgetPage() {
                 px: { xs: 3, sm: 4 },
                 height: 40,
                 width: { sm: 'auto' },
-                boxShadow: (theme) => theme.palette.mode === 'dark'
+                boxShadow: theme.palette.mode === 'dark'
                   ? '0 4px 12px rgba(0, 0, 0, 0.4)'
                   : '0 4px 12px rgba(99, 102, 241, 0.2)',
                 '&:hover': {
                   transform: 'translateY(-2px)',
-                  boxShadow: (theme) => theme.palette.mode === 'dark'
+                  boxShadow: theme.palette.mode === 'dark'
                     ? '0 6px 16px rgba(0, 0, 0, 0.6)'
                     : '0 6px 16px rgba(99, 102, 241, 0.3)',
                   bgcolor: 'primary.dark',
@@ -902,12 +904,13 @@ export default function BudgetPage() {
         onClose={handleCloseModal}
         maxWidth="sm"
         fullWidth
-        fullScreen
         sx={{
           '& .MuiDialog-paper': {
-            borderRadius: { xs: 0, sm: 2 },
+            borderRadius: 2,
+            mx: { xs: 2, sm: 'auto' },
+            my: { xs: 2, sm: 'auto' },
+            maxHeight: { xs: 'calc(100% - 32px)', sm: 'auto' },
           },
-          display: { sm: 'block' },
         }}
       >
         <DialogTitle sx={{
@@ -1081,12 +1084,13 @@ export default function BudgetPage() {
       <Dialog
         open={deleteTarget !== null}
         onClose={() => !isDeleting && setDeleteTarget(null)}
-        fullScreen
+        fullWidth
+        maxWidth="xs"
         sx={{
           '& .MuiDialog-paper': {
-            borderRadius: { xs: 0, sm: 2 },
+            borderRadius: { xs: 2, sm: 2 },
+            mx: { xs: 2, sm: 'auto' },
           },
-          display: { sm: 'block' },
         }}
       >
         <DialogTitle sx={{

@@ -42,10 +42,11 @@ import {
   Grid,
   useMediaQuery,
   useTheme,
+  Autocomplete,
 } from '@mui/material';
-import { FiX, FiTrendingUp, FiTrendingDown } from 'react-icons/fi';
+import { FiX, FiTrendingUp, FiTrendingDown, FiPlus } from 'react-icons/fi';
 import { useCurrencyStore } from '../stores';
-import { collection, getDocs, query, where } from "firebase/firestore";
+import { collection, getDocs, query, where, addDoc } from "firebase/firestore";
 import { auth, db } from '../firebase';
 import { useAuthState } from 'react-firebase-hooks/auth';
 
@@ -528,6 +529,19 @@ export default function AddExpenseModal({
 
     setIsSaving(true);
     try {
+      // Create new category if it doesn't exist
+      if (category && !availableCategories.some(c => c.toLowerCase() === category.toLowerCase())) {
+        await addDoc(collection(db, 'categories'), {
+          name: category,
+          userId: user?.uid,
+          createdAt: new Date(),
+        });
+        const updatedCategories = [...availableCategories, category].sort();
+        setAvailableCategories(updatedCategories);
+        localStorage.setItem('categories-updated', Date.now().toString());
+        window.dispatchEvent(new Event('categories-updated'));
+      }
+
       const payload: ExpensePayload = {
         description,
         amount: parsedAmount,
@@ -791,29 +805,89 @@ export default function AddExpenseModal({
           {/* Category and Payment Mode */}
           <Grid container spacing={2} sx={{ mb: 3 }}>
             <Grid size={{ xs: 12, sm: 6 }}>
-              <TextField
-                id="entry-category"
-                select
-                label="Category"
-                fullWidth
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                SelectProps={{
-                  MenuProps: {
-                    PaperProps: {
-                      sx: {
-                        maxHeight: 250,
-                      },
-                    },
-                  },
+              <Autocomplete
+                freeSolo
+                options={availableCategories}
+                value={category || null}
+                onChange={async (_, newValue) => {
+                  // Handle "Add New" option
+                  if (typeof newValue === 'string' && newValue.startsWith('__ADD_NEW__')) {
+                    const newCatName = newValue.replace('__ADD_NEW__', '');
+                    
+                    if (!user) return;
+                    
+                    try {
+                      // Create the new category in Firestore
+                      await addDoc(collection(db, 'categories'), {
+                        name: newCatName,
+                        userId: user.uid,
+                        createdAt: new Date(),
+                      });
+                      
+                      // Update local state
+                      const updatedCategories = [...availableCategories, newCatName].sort();
+                      setAvailableCategories(updatedCategories);
+                      setCategory(newCatName);
+                      
+                      // Notify other components
+                      localStorage.setItem('categories-updated', Date.now().toString());
+                      window.dispatchEvent(new Event('categories-updated'));
+                    } catch (err) {
+                      console.error('Error creating category:', err);
+                      setErrorMessage('Failed to create category');
+                    }
+                  } else {
+                    setCategory(newValue || '');
+                  }
                 }}
-              >
-                {availableCategories.map((cat) => (
-                  <MenuItem key={cat} value={cat}>
-                    {cat}
-                  </MenuItem>
-                ))}
-              </TextField>
+                onInputChange={(_, newInputValue) => {
+                  setCategory(newInputValue);
+                }}
+                filterOptions={(options, params) => {
+                  const { inputValue } = params;
+                  
+                  // Filter matching categories
+                  const filtered = options.filter((option) =>
+                    option.toLowerCase().includes(inputValue.toLowerCase())
+                  );
+                  
+                  // If input exists and doesn't match any option exactly, add "Add New" option
+                  if (inputValue && 
+                      !options.some(opt => opt.toLowerCase() === inputValue.toLowerCase())) {
+                    filtered.push(`__ADD_NEW__${inputValue}`);
+                  }
+                  
+                  return filtered;
+                }}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Category"
+                    placeholder="Type to search or create new"
+                  />
+                )}
+                renderOption={(props, option) => {
+                  if (option.startsWith('__ADD_NEW__')) {
+                    const newName = option.replace('__ADD_NEW__', '');
+                    return (
+                      <li {...props} key={`__ADD_NEW__${newName}`} style={{ color: 'var(--mui-palette-primary-main)', fontWeight: 600 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, py: 1 }}>
+                          <FiPlus size={18} />
+                          Add New: &quot;{newName}&quot;
+                        </Box>
+                      </li>
+                    );
+                  }
+                  return <li {...props} key={option}>{option}</li>;
+                }}
+                getOptionLabel={(option) => {
+                  // Hide the internal prefix from display
+                  if (typeof option === 'string' && option.startsWith('__ADD_NEW__')) {
+                    return option.replace('__ADD_NEW__', '');
+                  }
+                  return option || '';
+                }}
+              />
             </Grid>
             <Grid size={{ xs: 12, sm: 6 }}>
               <TextField

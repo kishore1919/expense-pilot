@@ -9,12 +9,12 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { 
   FiPlus, 
-  FiTrendingUp, 
   FiCreditCard, 
-  FiTarget, 
   FiArrowRight,
   FiActivity,
-  FiUser
+  FiUser,
+  FiArrowUpRight,
+  FiArrowDownRight
 } from 'react-icons/fi';
 import {
   Box,
@@ -22,13 +22,20 @@ import {
   Grid,
   Typography,
   Button,
-  LinearProgress,
   Paper,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Chip,
+  Skeleton,
 } from '@mui/material';
 import AddBookModal from './components/AddBookModal';
-import { StatCard } from './components/ui';
 import { useBooks } from '@/app/hooks/useBooks';
-import { useFinancialOverview } from '@/app/hooks/useFinancialOverview';
+import { useRecentTransactions } from '@/app/hooks/useRecentTransactions';
+import { useUserProfile } from '@/app/hooks/useUserProfile';
 import { useCurrencyStore } from '@/app/stores';
 import { useProtectedRoute } from '@/app/hooks/useAuth';
 
@@ -39,9 +46,10 @@ export default function HomePage() {
   const { formatCurrency } = useCurrencyStore();
   const { user, loading: authLoading } = useProtectedRoute();
   const router = useRouter();
+  const { profile, loading: profileLoading } = useUserProfile();
   
   const { loading: booksLoading, error: booksError, addBook } = useBooks({ calculateNet: true });
-  const overview = useFinancialOverview();
+  const { transactions, loading: transactionsLoading } = useRecentTransactions(5);
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
@@ -51,17 +59,12 @@ export default function HomePage() {
       setAddError(null);
       await addBook(bookName, type);
       setIsModalOpen(false);
-      overview.refetch(); // Refresh overview after adding a book
     } catch (err) {
       setAddError(err instanceof Error ? err.message : 'Failed to create book');
     }
-  }, [addBook, overview]);
+  }, [addBook]);
 
-  const loading = authLoading || booksLoading || overview.loading;
-  
-  const budgetProgress = overview.totalBudget > 0 
-    ? Math.min(Math.round((overview.totalSpent / overview.totalBudget) * 100), 100) 
-    : 0;
+  const loading = authLoading || booksLoading || transactionsLoading || profileLoading;
 
   const today = new Date().toLocaleDateString('en-US', { 
     weekday: 'long', 
@@ -69,6 +72,8 @@ export default function HomePage() {
     month: 'long', 
     day: 'numeric' 
   });
+
+  const displayName = profile?.username || user?.displayName?.split(' ')[0] || 'User';
 
   const quickActions = [
     { label: 'Personal Tracker', icon: <FiUser size={18} />, path: '/personal', color: '#6366F1' },
@@ -89,10 +94,10 @@ export default function HomePage() {
               mb: 0.5
             }}
           >
-            Welcome back, {user?.displayName?.split(' ')[0] || 'User'}!
+            Welcome back, {displayName}!
           </Typography>
           <Typography variant="body1" color="text.secondary">
-            {today} • Your financial overview is looking {overview.totalNetWorth >= 0 ? 'good' : 'a bit low'} today.
+            {today} • Track your expenses and manage your books.
           </Typography>
         </Box>
         <Box sx={{ display: 'flex', gap: 2 }}>
@@ -129,62 +134,13 @@ export default function HomePage() {
         </Box>
       </Box>
 
-      {(booksError || overview.error || addError) && (
+      {(booksError || addError) && (
         <Alert severity="error" sx={{ mb: 3, borderRadius: 2 }}>
-          {booksError || overview.error || addError}
+          {booksError || addError}
         </Alert>
       )}
 
-      {/* Primary Stats Grid */}
-      <Grid container spacing={{ xs: 2, sm: 3 }} sx={{ mb: 6 }}>
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-          <StatCard
-            title="Net Worth"
-            value={formatCurrency(overview.totalNetWorth)}
-            icon={<FiTrendingUp size={20} />}
-            iconBgColor="primary.main"
-            valueColor={overview.totalNetWorth >= 0 ? 'success.main' : 'error.main'}
-            loading={loading}
-          />
-        </Grid>
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-          <StatCard
-            title="Total Debt"
-            value={formatCurrency(overview.totalLiability)}
-            icon={<FiCreditCard size={20} />}
-            iconBgColor="error.main"
-            valueColor="error.main"
-            loading={loading}
-          />
-        </Grid>
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-          <StatCard
-            title="Budget Usage"
-            value={`${budgetProgress}%`}
-            icon={<FiTarget size={20} />}
-            iconBgColor="info.main"
-            loading={loading}
-            footer={
-              <Box sx={{ mt: 1 }}>
-                <LinearProgress
-                  variant="determinate"
-                  value={budgetProgress}
-                  color={budgetProgress > 90 ? 'error' : budgetProgress > 70 ? 'warning' : 'primary'}
-                  sx={{ height: 6, borderRadius: 3, bgcolor: 'rgba(0,0,0,0.05)' }}
-                />
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 0.5 }}>
-                  <Typography variant="caption" color="text.secondary">
-                    {formatCurrency(overview.totalSpent)} spent
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    {formatCurrency(overview.totalBudget)} limit
-                  </Typography>
-                </Box>
-              </Box>
-            }
-          />
-        </Grid>
-      </Grid>
+      {/* Stats Grid removed - using Quick Actions and Recent Transactions instead */}
 
       <Typography variant="h6" fontWeight={700} sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 1 }}>
         <FiActivity size={20} color="#6366F1" />
@@ -244,6 +200,90 @@ export default function HomePage() {
           </Grid>
         ))}
       </Grid>
+
+      {/* Recent Transactions Section */}
+      <Typography variant="h6" fontWeight={700} sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 1 }}>
+        <FiActivity size={20} color="#6366F1" />
+        Recent Transactions
+        <Typography variant="body2" color="text.secondary" fontWeight={400} sx={{ ml: 1 }}>
+          Across all books
+        </Typography>
+      </Typography>
+
+      <Paper elevation={0} sx={{ mb: 6, border: '1px solid', borderColor: 'divider', borderRadius: 3, overflow: 'hidden' }}>
+        {transactionsLoading ? (
+          <Box sx={{ p: 3 }}>
+            {[1, 2, 3].map((i) => (
+              <Skeleton key={i} height={60} sx={{ mb: 1 }} />
+            ))}
+          </Box>
+        ) : transactions.length === 0 ? (
+          <Box sx={{ p: 4, textAlign: 'center' }}>
+            <Typography color="text.secondary">No transactions yet</Typography>
+          </Box>
+        ) : (
+          <TableContainer>
+            <Table sx={{ minWidth: 650 }}>
+              <TableHead sx={{ bgcolor: 'background.default' }}>
+                <TableRow>
+                  <TableCell sx={{ fontWeight: 600 }}>Date</TableCell>
+                  <TableCell sx={{ fontWeight: 600 }}>Description</TableCell>
+                  <TableCell sx={{ fontWeight: 600 }}>Book</TableCell>
+                  <TableCell sx={{ fontWeight: 600 }}>Category</TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 600 }}>Amount</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {transactions.slice(0, 5).map((tx) => {
+                  const date = tx.createdAt.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+                  const isIncome = tx.type === 'in';
+                  return (
+                    <TableRow 
+                      key={`${tx.bookId}-${tx.id}`} 
+                      hover 
+                      onClick={() => router.push(`/book/${tx.bookId}`)}
+                      sx={{ textDecoration: 'none', cursor: 'pointer' }}
+                    >
+                      <TableCell>
+                        <Typography variant="body2" fontWeight={500}>{date}</Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2" fontWeight={500}>{tx.description}</Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Chip 
+                          label={tx.bookName} 
+                          size="small" 
+                          sx={{ fontWeight: 500, fontSize: '0.75rem' }}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2" color="text.secondary">{tx.category}</Typography>
+                      </TableCell>
+                      <TableCell align="right">
+                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 0.5 }}>
+                          {isIncome ? (
+                            <FiArrowUpRight size={16} color="#22c55e" />
+                          ) : (
+                            <FiArrowDownRight size={16} color="#ef4444" />
+                          )}
+                          <Typography 
+                            variant="body2" 
+                            fontWeight={600} 
+                            color={isIncome ? 'success.main' : 'error.main'}
+                          >
+                            {isIncome ? '+' : '-'}{formatCurrency(tx.amount)}
+                          </Typography>
+                        </Box>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        )}
+      </Paper>
 
       {/* Books Section */}
       <AddBookModal

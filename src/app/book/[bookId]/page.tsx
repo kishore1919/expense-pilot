@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   FiEdit2,
   FiPlus,
@@ -32,7 +32,12 @@ import {
   Divider,
   Alert,
   useTheme,
-  useMediaQuery
+  useMediaQuery,
+  Fab,
+  SpeedDial,
+  SpeedDialIcon,
+  SpeedDialAction,
+  Tooltip,
 } from '@mui/material';
 
 import { useParams, useRouter } from 'next/navigation';
@@ -402,8 +407,36 @@ export default function BookDetailPage() {
     URL.revokeObjectURL(url);
   };
 
+  // Keyboard shortcuts for quick entry
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey || e.metaKey) {
+        if (e.key === 'i' || e.key === 'I') {
+          e.preventDefault();
+          setEditingExpense(null);
+          setModalInitialType('in');
+          setIsModalOpen(true);
+        } else if (e.key === 'o' || e.key === 'O') {
+          e.preventDefault();
+          setEditingExpense(null);
+          setModalInitialType('out');
+          setIsModalOpen(true);
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  // FAB actions
+  const fabActions = [
+    { icon: <FiPlus size={20} />, name: 'Cash In', action: () => { setEditingExpense(null); setModalInitialType('in'); setIsModalOpen(true); } },
+    { icon: <FiMinus size={20} />, name: 'Cash Out', action: () => { setEditingExpense(null); setModalInitialType('out'); setIsModalOpen(true); } },
+  ];
+
   return (
-    <Box sx={{ pb: { xs: 10, md: 4 }, px: { xs: 1, sm: 2 } }}>
+    <Box sx={{ pb: { xs: 10, md: 4 }, px: { xs: 2, sm: 2, md: 3 } }}>
       
         <BookHeader
           bookId={bookId as string}
@@ -416,7 +449,7 @@ export default function BookDetailPage() {
           showFilters={showFilters}
         />
       
-      <Divider sx={{ mb: 3 }} />
+      <Divider sx={{ mb: { xs: 2, sm: 3 } }} />
 
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
@@ -450,7 +483,7 @@ export default function BookDetailPage() {
         display: 'flex', 
         justifyContent: 'space-between', 
         alignItems: 'center', 
-        mb: 4, 
+        mb: { xs: 3, sm: 4 }, 
         gap: 2, 
         flexDirection: { xs: 'column', md: 'row' }
       }}>
@@ -465,7 +498,7 @@ export default function BookDetailPage() {
             startAdornment: <InputAdornment position="start"><FiSearch color="inherit" style={{ opacity: 0.5 }} /></InputAdornment>
           }}
         />
-        <Box sx={{ display: 'flex', gap: 1.5, width: { xs: '100%', md: 'auto' } }}>
+        <Box sx={{ display: 'flex', gap: { xs: 1, sm: 1.5 }, width: { xs: '100%', md: 'auto' } }}>
           <Button 
             variant="contained" 
             color="success" 
@@ -473,6 +506,7 @@ export default function BookDetailPage() {
             fullWidth
             onClick={() => { setEditingExpense(null); setModalInitialType('in'); setIsModalOpen(true); }}
             sx={{ textTransform: 'none', fontWeight: 600 }}
+            size="small"
           >
             {bookType === 'personal' ? 'Add Income' : 'Cash In'}
           </Button>
@@ -483,6 +517,7 @@ export default function BookDetailPage() {
             fullWidth
             onClick={() => { setEditingExpense(null); setModalInitialType('out'); setIsModalOpen(true); }}
             sx={{ textTransform: 'none', fontWeight: 600 }}
+            size="small"
           >
             {bookType === 'personal' ? 'Add Expense' : 'Cash Out'}
           </Button>
@@ -511,9 +546,9 @@ export default function BookDetailPage() {
 
       {/* --- Category Breakdown (Personal Only) --- */}
       {bookType === 'personal' && expenses.length > 0 && (
-        <Paper sx={{ p: 3, mb: 4, borderRadius: 2 }}>
-          <Typography variant="h6" fontWeight={600} sx={{ mb: 2 }}>Category Breakdown</Typography>
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 3 }}>
+        <Paper sx={{ p: { xs: 2, sm: 3 }, mb: { xs: 3, sm: 4 }, borderRadius: 2 }}>
+          <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }}>Category Breakdown</Typography>
+          <Box sx={{ display: 'grid', gridTemplateColumns: '1fr', gap: { xs: 2, sm: 3 } }}>
             {Object.entries(
               expenses
                 .filter(e => e.type === 'out')
@@ -528,9 +563,9 @@ export default function BookDetailPage() {
                 const percentage = Math.round((amt / cashOut) * 100) || 0;
                 return (
                   <Box key={cat}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-                      <Typography variant="body2" fontWeight={500}>{cat}</Typography>
-                      <Typography variant="body2" fontWeight={600}>{formatCurrency(amt)} ({percentage}%)</Typography>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
+                      <Typography variant="body2" fontWeight={500} noWrap sx={{ maxWidth: '60%' }}>{cat}</Typography>
+                      <Typography variant="caption" fontWeight={600} noWrap>{formatCurrency(amt)} ({percentage}%)</Typography>
                     </Box>
                     <Box sx={{ height: 8, bgcolor: 'action.hover', borderRadius: 4, overflow: 'hidden' }}>
                       <Box sx={{ 
@@ -715,6 +750,30 @@ export default function BookDetailPage() {
           isDeleting={isDeleting}
         />
       )}
+
+      {/* FAB for quick entry */}
+      <SpeedDial
+        ariaLabel="Quick add"
+        sx={{ position: 'fixed', bottom: { xs: 80, md: 24 }, right: 24 }}
+        icon={<SpeedDialIcon />}
+        FabProps={{
+          color: 'primary',
+          size: 'medium',
+        }}
+      >
+        {fabActions.map((action) => (
+          <SpeedDialAction
+            key={action.name}
+            icon={action.icon}
+            tooltipTitle={action.name}
+            onClick={action.action}
+            FabProps={{
+              color: action.name === 'Cash In' ? 'success' : 'error',
+              size: 'small',
+            }}
+          />
+        ))}
+      </SpeedDial>
 
       <AddExpenseModal
         isOpen={isModalOpen}

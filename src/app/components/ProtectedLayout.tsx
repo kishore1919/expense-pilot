@@ -14,6 +14,9 @@ import { useProtectedRoute } from '@/app/hooks/useAuth';
 import Loading from './Loading';
 import Sidebar from './Sidebar';
 import { ErrorBoundary } from './ErrorBoundary';
+import { ServiceWorkerRegistration } from './ServiceWorkerRegistration';
+import SearchModal from './SearchModal';
+import { useState, useEffect } from 'react';
 
 interface ProtectedLayoutProps {
   children: React.ReactNode;
@@ -25,6 +28,23 @@ export function ProtectedLayout({ children }: ProtectedLayoutProps) {
   const isCollapsed = useSidebarStore((state) => state.isCollapsed);
   const sidebarWidth = isCollapsed ? 72 : 260;
   const { loading, isAuthenticated } = useProtectedRoute();
+  const [searchOpen, setSearchOpen] = useState(false);
+
+  // Keyboard shortcut for search (Cmd/Ctrl + K)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        setSearchOpen(true);
+      }
+      if (e.key === 'Escape') {
+        setSearchOpen(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   // Show loading while checking auth or redirecting
   if (loading || (!isAuthenticated && !isAuthPage)) {
@@ -61,7 +81,8 @@ export function ProtectedLayout({ children }: ProtectedLayoutProps) {
 
   return (
     <>
-      <Sidebar />
+      <ServiceWorkerRegistration />
+      <Sidebar onSearchClick={() => setSearchOpen(true)} />
       <Box
         component="main"
         sx={{
@@ -90,6 +111,7 @@ export function ProtectedLayout({ children }: ProtectedLayoutProps) {
           </ErrorBoundary>
         </Box>
       </Box>
+      <SearchModal key={searchOpen ? 'open' : 'closed'} open={searchOpen} onClose={() => setSearchOpen(false)} />
     </>
   );
 }
